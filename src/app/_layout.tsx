@@ -1,8 +1,8 @@
-import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
-import { Stack, useRootNavigationState, useRouter, useSegments } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef } from 'react';
+﻿import { useEffect, useRef } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 
 function RootNavigator() {
   const { session, loading } = useAuth();
@@ -18,7 +18,7 @@ function RootNavigator() {
     const inAuthGroup = segments[0] === '(auth)';
     let target: string | null = null;
 
-    if (!session && !inAuthGroup) target = '/(auth)/sign-in';
+    if (!session && !inAuthGroup) target = '/sign-in';
     else if (session && inAuthGroup) target = '/';
 
     if (target && lastTarget.current !== target) {
