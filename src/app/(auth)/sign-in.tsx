@@ -3,6 +3,7 @@ import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import { Link } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { credentialsSchema } from '@/features/auth/schemas';
+import { GoogleButton } from '@/features/auth/GoogleButton';
 
 export default function SignIn() {
   const [email, setEmail] = useState('');
@@ -30,6 +31,9 @@ export default function SignIn() {
   return (
     <View style={s.container}>
       <Text style={s.title}>ChatFit</Text>
+
+      <GoogleButton />
+      <Text style={s.divider}>veya</Text>
 
       <TextInput
         style={s.input}

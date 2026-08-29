@@ -1,7 +1,7 @@
-import { supabase } from '@/lib/supabase';
+﻿import { useEffect, useState } from 'react';
+import { Pressable, Text, StyleSheet, Alert } from 'react-native';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text } from 'react-native';
+import { supabase } from '@/lib/supabase';
 
 export function GoogleButton() {
   const [busy, setBusy] = useState(false);
@@ -28,6 +28,7 @@ export function GoogleButton() {
       if (error) throw error;
     } catch (e: any) {
       if (e?.code === statusCodes.SIGN_IN_CANCELLED) return;
+      console.log('GOOGLE ERROR:', e?.code, e?.message);
       Alert.alert('Giris yapilamadi', 'Lutfen tekrar dene.');
     } finally {
       setBusy(false);
@@ -43,8 +44,12 @@ export function GoogleButton() {
 
 const s = StyleSheet.create({
   button: {
-    borderWidth: 1, borderColor: '#ccc', borderRadius: 8,
-    padding: 16, alignItems: 'center', backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    backgroundColor: '#fff',
   },
   disabled: { opacity: 0.5 },
   text: { fontSize: 16, fontWeight: '600', color: '#111' },
