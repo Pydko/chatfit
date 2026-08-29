@@ -111,3 +111,27 @@ export async function fetchLastSetsForExercise(
   if (error) throw error;
   return data ?? [];
 }
+
+// Bir hareketin tum gecmisi - seans bazinda gruplamak icin ham veri
+export async function fetchExerciseHistory(exerciseId: string): Promise<SetLog[]> {
+  const { data, error } = await supabase
+    .from('set_logs')
+    .select('*')
+    .eq('exercise_id', exerciseId)
+    .order('performed_at', { ascending: false })
+    .limit(200);
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function fetchExerciseById(id: string): Promise<Exercise | null> {
+  const { data, error } = await supabase
+    .from('exercises')
+    .select('id, owner_id, name, primary_muscle, equipment, is_unilateral')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}

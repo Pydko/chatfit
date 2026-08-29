@@ -1,15 +1,18 @@
-﻿import { useState, useCallback } from 'react';
+﻿import { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, Pressable, StyleSheet, Alert, ActivityIndicator, ScrollView,
 } from 'react-native';
-import { useLocalSearchParams, useFocusEffect, Stack } from 'expo-router';
+import { useLocalSearchParams, useFocusEffect, useRouter, Stack } from 'expo-router';
+import { ChevronRight } from 'lucide-react-native';
 import { ExercisePicker } from '@/features/workouts/ExercisePicker';
 import { SetForm } from '@/features/workouts/SetForm';
 import { fetchSetLogs, addSetLog, deleteSetLog, fetchExercises } from '@/features/workouts/api';
+import { groupByExercise, summarizeSets, summarizeWeight } from '@/features/workouts/summary';
 import type { Exercise, SetLog } from '@/types/workout';
 
 export default function SessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const [logs, setLogs] = useState<SetLog[]>([]);
   const [exercises, setExercises] = useState<Record<string, Exercise>>({});
   const [selected, setSelected] = useState<Exercise | null>(null);
@@ -32,6 +35,8 @@ export default function SessionScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  const grouped = useMemo(() => Array.from(groupByExercise(logs).entries()), [logs]);
+
   const nextSetIndex = selected
     ? logs.filter((l) => l.exercise_id === selected.id).length + 1
     : 1;
@@ -52,22 +57,26 @@ export default function SessionScreen() {
     setLogs((prev) => [...prev, created]);
   }
 
-  function handleDelete(logId: string) {
-    Alert.alert('Seti sil', 'Bu set kaydi silinecek.', [
-      { text: 'Vazgec', style: 'cancel' },
-      {
-        text: 'Sil',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteSetLog(logId);
-            setLogs((prev) => prev.filter((l) => l.id !== logId));
-          } catch {
-            Alert.alert('Hata', 'Set silinemedi.');
-          }
+  function handleDeleteExercise(exerciseId: string, sets: SetLog[]) {
+    Alert.alert(
+      exercises[exerciseId]?.name ?? 'Hareket',
+      `${sets.length} set kaydi silinecek.`,
+      [
+        { text: 'Vazgec', style: 'cancel' },
+        {
+          text: 'Sil',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await Promise.all(sets.map((s) => deleteSetLog(s.id)));
+              setLogs((prev) => prev.filter((l) => l.exercise_id !== exerciseId));
+            } catch {
+              Alert.alert('Hata', 'Silinemedi.');
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   }
 
   if (loading) {
@@ -84,7 +93,7 @@ export default function SessionScreen() {
       <ScrollView style={s.container} contentContainerStyle={{ padding: 16, gap: 16 }}>
         <Pressable style={s.pickButton} onPress={() => setPickerOpen(true)}>
           <Text style={s.pickButtonText}>
-            {selected ? 'Hareketi degistir' : 'Hareket sec'}
+            {selected ? 'Baska hareket ekle' : 'Hareket sec'}
           </Text>
         </Pressable>
 
@@ -92,29 +101,38 @@ export default function SessionScreen() {
           <SetForm exercise={selected} nextSetIndex={nextSetIndex} onSubmit={handleAddSet} />
         )}
 
-        <Text style={s.sectionTitle}>Kaydedilen setler ({logs.length})</Text>
-
-        {logs.length === 0 ? (
-          <Text style={s.empty}>Henuz set eklemedin.</Text>
-        ) : (
-          logs.map((log) => (
-            <Pressable key={log.id} style={s.logRow} onLongPress={() => handleDelete(log.id)}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.logName}>
-                  {exercises[log.exercise_id]?.name ?? 'Bilinmeyen hareket'}
-                </Text>
-                <Text style={s.logMeta}>
-                  {log.weight_kg} kg x {log.reps}
-                  {log.rpe ? `  RPE ${log.rpe}` : ''}
-                  {log.is_warmup ? '  (isinma)' : ''}
-                </Text>
-              </View>
-              <Text style={s.logIndex}>#{log.set_index}</Text>
-            </Pressable>
-          ))
+        {grouped.length > 0 && (
+          <Text style={s.sectionTitle}>Bu antrenman</Text>
         )}
 
-        <Text style={s.hint}>Bir seti silmek icin uzun bas.</Text>
+        {grouped.map(([exerciseId, sets]) => (
+          <Pressable
+            key={exerciseId}
+            style={s.card}
+            onPress={() =>
+              router.push({ pathname: '/exercise/[id]', params: { id: exerciseId } })
+            }
+            onLongPress={() => handleDeleteExercise(exerciseId, sets)}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={s.cardName}>
+                {exercises[exerciseId]?.name ?? 'Bilinmeyen hareket'}
+              </Text>
+              <Text style={s.cardSummary}>
+                {summarizeSets(sets)}  ·  {summarizeWeight(sets)}
+              </Text>
+            </View>
+            <ChevronRight color="#bbb" size={20} />
+          </Pressable>
+        ))}
+
+        {grouped.length === 0 && (
+          <Text style={s.empty}>Henuz set eklemedin.</Text>
+        )}
+
+        {grouped.length > 0 && (
+          <Text style={s.hint}>Detay icin dokun, silmek icin uzun bas.</Text>
+        )}
       </ScrollView>
 
       <ExercisePicker
@@ -133,12 +151,11 @@ const s = StyleSheet.create({
   pickButtonText: { fontSize: 16, fontWeight: '600' },
   sectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 8 },
   empty: { color: '#777' },
-  logRow: {
+  card: {
     flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee',
+    backgroundColor: '#f5f5f5', borderRadius: 12, padding: 16,
   },
-  logName: { fontSize: 15, fontWeight: '500' },
-  logMeta: { fontSize: 14, color: '#666', marginTop: 2 },
-  logIndex: { fontSize: 14, color: '#999' },
+  cardName: { fontSize: 16, fontWeight: '600' },
+  cardSummary: { fontSize: 14, color: '#666', marginTop: 4 },
   hint: { fontSize: 12, color: '#999', textAlign: 'center', marginTop: 8 },
 });
