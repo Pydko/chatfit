@@ -1,17 +1,8 @@
-import { credentialsSchema } from '@/features/auth/schemas';
-import { supabase } from '@/lib/supabase';
+﻿import { useState } from 'react';
+import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import { Link } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-
-
-console.log('ENV CHECK:',
-  process.env.EXPO_PUBLIC_SUPABASE_URL,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.slice(0, 15),
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.length
-);
-
-
+import { supabase } from '@/lib/supabase';
+import { credentialsSchema } from '@/features/auth/schemas';
 
 export default function SignIn() {
   const [email, setEmail] = useState('');
@@ -32,7 +23,6 @@ export default function SignIn() {
     setBusy(false);
 
     if (authError) {
-      console.log('SIGNIN ERROR:', authError.status, authError.message);
       setError('E-posta veya sifre hatali.');
     }
   }
@@ -65,9 +55,7 @@ export default function SignIn() {
         <Text style={s.buttonText}>{busy ? 'Giris yapiliyor...' : 'Giris yap'}</Text>
       </Pressable>
 
-      <Link href="/(auth)/sign-up" style={s.link}>
-        Hesabin yok mu? Kaydol
-      </Link>
+      <Link href="/sign-up" style={s.link}>Hesabin yok mu? Kaydol</Link>
     </View>
   );
 }
@@ -75,6 +63,7 @@ export default function SignIn() {
 const s = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12 },
   title: { fontSize: 32, fontWeight: '700', marginBottom: 24, textAlign: 'center' },
+  divider: { textAlign: 'center', color: '#888' },
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 14, fontSize: 16 },
   button: { backgroundColor: '#111', borderRadius: 8, padding: 16, alignItems: 'center' },
   disabled: { opacity: 0.5 },

@@ -1,8 +1,8 @@
-import { credentialsSchema } from '@/features/auth/schemas';
-import { supabase } from '@/lib/supabase';
+﻿import { useState } from 'react';
+import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import { Link } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { supabase } from '@/lib/supabase';
+import { credentialsSchema } from '@/features/auth/schemas';
 
 export default function SignUp() {
   const [email, setEmail] = useState('');
@@ -27,8 +27,6 @@ export default function SignUp() {
     setBusy(false);
 
     if (authError) {
-      // GECICI TESHIS LOGU - test bitince sil
-      console.log('SIGNUP ERROR:', authError.status, authError.message);
       setError('Kayit olusturulamadi. Lutfen tekrar dene.');
       return;
     }
@@ -83,6 +81,7 @@ const s = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12 },
   title: { fontSize: 32, fontWeight: '700', marginBottom: 24, textAlign: 'center' },
   info: { fontSize: 16, textAlign: 'center', color: '#444', lineHeight: 24 },
+  divider: { textAlign: 'center', color: '#888' },
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 14, fontSize: 16 },
   button: { backgroundColor: '#111', borderRadius: 8, padding: 16, alignItems: 'center' },
   disabled: { opacity: 0.5 },
