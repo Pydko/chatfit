@@ -1,6 +1,6 @@
-import { useAuth } from '@/features/auth/AuthProvider';
+﻿import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { supabase } from '@/lib/supabase';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useAuth } from '@/features/auth/AuthProvider';
 
 export default function Home() {
   const { session } = useAuth();
