@@ -3,6 +3,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
+import { startSyncEngine } from '@/lib/sync';
 
 function RootNavigator() {
   const { session, loading } = useAuth();
@@ -27,6 +28,15 @@ function RootNavigator() {
     }
     if (!target) lastTarget.current = null;
   }, [session, loading, segments, router, navState?.key]);
+
+  useEffect(() => {
+    if (!session) return;
+    try {
+      return startSyncEngine();
+    } catch (e) {
+      console.log('SYNC ENGINE ERROR:', e);
+    }
+  }, [session]);
 
   if (loading || !navState?.key) {
     return (

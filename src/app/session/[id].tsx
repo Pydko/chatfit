@@ -6,14 +6,18 @@ import { useLocalSearchParams, useFocusEffect, useRouter, Stack } from 'expo-rou
 import { ChevronRight } from 'lucide-react-native';
 import { ExercisePicker } from '@/features/workouts/ExercisePicker';
 import { SetForm } from '@/features/workouts/SetForm';
-import { fetchSetLogs, addSetLog, deleteSetLog, fetchExercises } from '@/features/workouts/api';
+import { SyncBanner } from '@/components/SyncBanner';
+import {
+  fetchSetLogs, addSetLog, deleteSetLog, fetchExercises,
+  type LocalSetLog,
+} from '@/features/workouts/api';
 import { groupByExercise, summarizeSets, summarizeWeight } from '@/features/workouts/summary';
-import type { Exercise, SetLog } from '@/types/workout';
+import type { Exercise } from '@/types/workout';
 
 export default function SessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const [logs, setLogs] = useState<SetLog[]>([]);
+  const [logs, setLogs] = useState<LocalSetLog[]>([]);
   const [exercises, setExercises] = useState<Record<string, Exercise>>({});
   const [selected, setSelected] = useState<Exercise | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -57,7 +61,7 @@ export default function SessionScreen() {
     setLogs((prev) => [...prev, created]);
   }
 
-  function handleDeleteExercise(exerciseId: string, sets: SetLog[]) {
+  function handleDeleteExercise(exerciseId: string, sets: LocalSetLog[]) {
     Alert.alert(
       exercises[exerciseId]?.name ?? 'Hareket',
       `${sets.length} set kaydi silinecek.`,
@@ -90,6 +94,7 @@ export default function SessionScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: true, title: 'Antrenman' }} />
+      <SyncBanner />
       <ScrollView style={s.container} contentContainerStyle={{ padding: 16, gap: 16 }}>
         <Pressable style={s.pickButton} onPress={() => setPickerOpen(true)}>
           <Text style={s.pickButtonText}>
@@ -101,34 +106,34 @@ export default function SessionScreen() {
           <SetForm exercise={selected} nextSetIndex={nextSetIndex} onSubmit={handleAddSet} />
         )}
 
-        {grouped.length > 0 && (
-          <Text style={s.sectionTitle}>Bu antrenman</Text>
-        )}
+        {grouped.length > 0 && <Text style={s.sectionTitle}>Bu antrenman</Text>}
 
-        {grouped.map(([exerciseId, sets]) => (
-          <Pressable
-            key={exerciseId}
-            style={s.card}
-            onPress={() =>
-              router.push({ pathname: '/exercise/[id]', params: { id: exerciseId } })
-            }
-            onLongPress={() => handleDeleteExercise(exerciseId, sets)}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={s.cardName}>
-                {exercises[exerciseId]?.name ?? 'Bilinmeyen hareket'}
-              </Text>
-              <Text style={s.cardSummary}>
-                {summarizeSets(sets)}  ·  {summarizeWeight(sets)}
-              </Text>
-            </View>
-            <ChevronRight color="#bbb" size={20} />
-          </Pressable>
-        ))}
+        {grouped.map(([exerciseId, sets]) => {
+          const hasPending = sets.some((set) => set.is_pending);
+          return (
+            <Pressable
+              key={exerciseId}
+              style={s.card}
+              onPress={() =>
+                router.push({ pathname: '/exercise/[id]', params: { id: exerciseId } })
+              }
+              onLongPress={() => handleDeleteExercise(exerciseId, sets)}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={s.cardName}>
+                  {exercises[exerciseId]?.name ?? 'Bilinmeyen hareket'}
+                </Text>
+                <Text style={s.cardSummary}>
+                  {summarizeSets(sets)}  ·  {summarizeWeight(sets)}
+                </Text>
+                {hasPending && <Text style={s.pending}>Gonderilmeyi bekliyor</Text>}
+              </View>
+              <ChevronRight color="#bbb" size={20} />
+            </Pressable>
+          );
+        })}
 
-        {grouped.length === 0 && (
-          <Text style={s.empty}>Henuz set eklemedin.</Text>
-        )}
+        {grouped.length === 0 && <Text style={s.empty}>Henuz set eklemedin.</Text>}
 
         {grouped.length > 0 && (
           <Text style={s.hint}>Detay icin dokun, silmek icin uzun bas.</Text>
@@ -157,5 +162,6 @@ const s = StyleSheet.create({
   },
   cardName: { fontSize: 16, fontWeight: '600' },
   cardSummary: { fontSize: 14, color: '#666', marginTop: 4 },
+  pending: { fontSize: 12, color: '#8a6d1f', marginTop: 4 },
   hint: { fontSize: 12, color: '#999', textAlign: 'center', marginTop: 8 },
 });
