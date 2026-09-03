@@ -1,9 +1,12 @@
-﻿import { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
-import { useLocalSearchParams, useFocusEffect, Stack } from 'expo-router';
-import { fetchExerciseHistory, fetchExerciseById } from '@/features/workouts/api';
+﻿import { suggestProgression, suggestWeightForTargetReps } from '@/features/progress/progression';
+import { analyzeTrend, estimateWeeksToTarget } from '@/features/progress/trend';
+import { fetchExerciseById, fetchExerciseHistory } from '@/features/workouts/api';
 import { groupBySession, summarizeSets, summarizeWeight } from '@/features/workouts/summary';
 import { MUSCLE_LABELS, type Exercise, type SetLog } from '@/types/workout';
+import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Minus, TrendingDown, TrendingUp } from 'lucide-react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function ExerciseDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -45,6 +48,43 @@ export default function ExerciseDetail() {
     return working.reduce((a, b) => (b.weight_kg > a.weight_kg ? b : a));
   }, [history]);
 
+  // Trend analizi
+  const trend = useMemo(() => {
+    if (history.length < 3) return null;
+    return analyzeTrend(history);
+  }, [history]);
+
+  // Progression önerisi
+  const lastSession = useMemo(() => {
+    if (sessions.length === 0) return [];
+    return sessions[0][1]; // en yeni seansın setleri
+  }, [sessions]);
+
+  const progression = useMemo(() => {
+    if (lastSession.length === 0) return null;
+    const previousSessions = sessions.slice(1, 4).map((s) => s[1]);
+    return suggestProgression({
+      lastSessionSets: lastSession,
+      previousSessions,
+      targetRepsMin: 8,
+      targetRepsMax: 12,
+    });
+  }, [lastSession, sessions]);
+
+  // Hedef ağırlık
+  const targetWeight = useMemo(() => {
+    if (best && history.length > 0) {
+      return suggestWeightForTargetReps(history, 6);
+    }
+    return null;
+  }, [best, history]);
+
+  // Hedefe kaç hafta
+  const weeksToTarget = useMemo(() => {
+    if (!targetWeight || targetWeight <= 0) return null;
+    return estimateWeeksToTarget(history, targetWeight + 5);
+  }, [targetWeight, history]);
+
   if (loading) {
     return (
       <View style={s.center}>
@@ -76,10 +116,106 @@ export default function ExerciseDetail() {
           </View>
         )}
 
-        <Text style={s.sectionTitle}>Gecmis ({sessions.length} antrenman)</Text>
+        {/* Trend Badge */}
+        {trend && trend.direction !== 'insufficient' && (
+          <View style={s.trendCard}>
+            <View style={s.trendHeader}>
+              {trend.direction === 'up' && (
+                <>
+                  <TrendingUp color="#22c55e" size={20} />
+                  <Text style={[s.trendLabel, { color: '#22c55e' }]}>
+                    {Math.abs(trend.changePercent).toFixed(1)}% ilerleme
+                  </Text>
+                </>
+              )}
+              {trend.direction === 'down' && (
+                <>
+                  <TrendingDown color="#ef4444" size={20} />
+                  <Text style={[s.trendLabel, { color: '#ef4444' }]}>
+                    {Math.abs(trend.changePercent).toFixed(1)}% gerileme
+                  </Text>
+                </>
+              )}
+              {trend.direction === 'flat' && (
+                <>
+                  <Minus color="#8b5cf6" size={20} />
+                  <Text style={[s.trendLabel, { color: '#8b5cf6' }]}>Sabit performans</Text>
+                </>
+              )}
+            </View>
+            <Text style={s.trendSummary}>{trend.summary}</Text>
+          </View>
+        )}
+
+        {/* Progression Suggestion */}
+        {progression && progression.action !== 'no_data' && (
+          <View style={s.suggestionCard}>
+            <Text style={s.suggestionTitle}>Sonraki Adım</Text>
+            <View style={s.actionRow}>
+              <Text style={s.actionLabel}>
+                {progression.action === 'increase_weight' && '📈 Ağırlık Artır'}
+                {progression.action === 'add_reps' && '➕ Tekrar Ekle'}
+                {progression.action === 'hold' && '⏸️ Bekle'}
+                {progression.action === 'deload' && '⬇️ Deload'}
+              </Text>
+            </View>
+            <Text style={s.suggestionDetail}>
+              {progression.weightKg} kg x {progression.reps}
+            </Text>
+            <Text style={s.suggestionReason}>{progression.reason}</Text>
+            <View style={s.confidenceRow}>
+              <View
+                style={[
+                  s.confidenceBadge,
+                  {
+                    backgroundColor:
+                      progression.confidence === 'high'
+                        ? '#dbeafe'
+                        : progression.confidence === 'medium'
+                          ? '#fef08a'
+                          : '#fee2e2',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    s.confidenceText,
+                    {
+                      color:
+                        progression.confidence === 'high'
+                          ? '#0369a1'
+                          : progression.confidence === 'medium'
+                            ? '#854d0e'
+                            : '#991b1b',
+                    },
+                  ]}
+                >
+                  {progression.confidence === 'high' && 'Yüksek kesinlik'}
+                  {progression.confidence === 'medium' && 'Orta kesinlik'}
+                  {progression.confidence === 'low' && 'Düşük kesinlik'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Hedef Ağırlık */}
+        {targetWeight && targetWeight > 0 && (
+          <View style={s.targetCard}>
+            <Text style={s.targetLabel}>Hedef Ağırlık (6 tekrar)</Text>
+            <Text style={s.targetValue}>{targetWeight.toFixed(1)} kg</Text>
+            {weeksToTarget && weeksToTarget.weeks && weeksToTarget.weeks > 0 && (
+              <Text style={s.targetNote}>
+                ~{weeksToTarget.weeks} haftada
+              </Text>
+            )}
+          </View>
+        )}
+
+        <Text style={s.sectionTitle}>Geçmiş ({sessions.length} antrenman)</Text>
 
         {sessions.length === 0 ? (
-          <Text style={s.empty}>Bu hareketi henuz calismadin.</Text>
+          <Text style={s.empty}>Bu hareketi henüz çalışmadın.</Text>
         ) : (
           sessions.map(([sessionId, sets]) => (
             <View key={sessionId} style={s.sessionCard}>
@@ -98,7 +234,7 @@ export default function ExerciseDetail() {
                     <Text key={set.id} style={s.setLine}>
                       {set.set_index}. {set.weight_kg} kg x {set.reps}
                       {set.rpe ? `  RPE ${set.rpe}` : ''}
-                      {set.is_warmup ? '  (isinma)' : ''}
+                      {set.is_warmup ? '  (ısınma)' : ''}
                     </Text>
                   ))}
               </View>
@@ -120,6 +256,40 @@ const s = StyleSheet.create({
   statLabel: { fontSize: 13, color: '#aaa' },
   statValue: { fontSize: 24, fontWeight: '700', color: '#fff' },
   statDate: { fontSize: 13, color: '#aaa' },
+  trendCard: {
+    backgroundColor: '#f0fdf4',
+    borderLeftWidth: 4,
+    borderLeftColor: '#22c55e',
+    borderRadius: 8,
+    padding: 12,
+    gap: 8,
+  },
+  trendHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  trendLabel: { fontSize: 14, fontWeight: '600' },
+  trendSummary: { fontSize: 13, color: '#555', lineHeight: 18 },
+  suggestionCard: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    padding: 14,
+    gap: 8,
+  },
+  suggestionTitle: { fontSize: 14, fontWeight: '600', color: '#0369a1' },
+  actionRow: { flexDirection: 'row', alignItems: 'center' },
+  actionLabel: { fontSize: 16, fontWeight: '600' },
+  suggestionDetail: { fontSize: 18, fontWeight: '700', color: '#1e40af' },
+  suggestionReason: { fontSize: 13, color: '#555', lineHeight: 18 },
+  confidenceRow: { flexDirection: 'row', marginTop: 4 },
+  confidenceBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  confidenceText: { fontSize: 12, fontWeight: '500' },
+  targetCard: {
+    backgroundColor: '#faf5ff',
+    borderRadius: 12,
+    padding: 14,
+    gap: 4,
+  },
+  targetLabel: { fontSize: 13, color: '#7c3aed' },
+  targetValue: { fontSize: 20, fontWeight: '700', color: '#7c3aed' },
+  targetNote: { fontSize: 12, color: '#a78bfa' },
   sectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 8 },
   empty: { color: '#777' },
   sessionCard: { backgroundColor: '#f5f5f5', borderRadius: 12, padding: 16, gap: 6 },

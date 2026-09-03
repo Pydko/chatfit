@@ -1,0 +1,1 @@
+﻿module.exports = { preset: "ts-jest", testEnvironment: "node", testMatch: ["<rootDir>/src/features/progress/**/*.test.ts"], moduleNameMapper: { "^@/(.*)$": "<rootDir>/src/$1" }, transform: { "^.+\.tsx?$": ["ts-jest", {diagnostics: false }] } };
