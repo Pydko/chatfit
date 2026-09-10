@@ -1,6 +1,10 @@
 ﻿import * as SQLite from 'expo-sqlite';
 
-export type QueueOp = 'insert_set_log' | 'delete_set_log';
+export type QueueOp =
+  | 'insert_set_log'
+  | 'delete_set_log'
+  | 'upsert_note'
+  | 'delete_note';
 
 export type QueueItem = {
   id: number;
@@ -9,6 +13,16 @@ export type QueueItem = {
   created_at: number;
   attempts: number;
   last_error: string | null;
+};
+
+export type CachedNote = {
+  id: string;
+  user_id: string;
+  title: string | null;
+  body: string;
+  created_at: string;
+  updated_at: string;
+  is_pending: boolean;
 };
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -42,6 +56,20 @@ function getDb(): Promise<SQLite.SQLiteDatabase> {
 
         create index if not exists pending_sets_session_idx
           on pending_sets (session_id);
+
+        create table if not exists notes_cache (
+          id text primary key,
+          user_id text not null,
+          title text,
+          body text not null,
+          created_at text not null,
+          updated_at text not null,
+          is_dirty integer not null default 0,
+          is_deleted integer not null default 0
+        );
+
+        create index if not exists notes_cache_updated_idx
+          on notes_cache (updated_at desc);
       `);
       return db;
     });
@@ -136,7 +164,102 @@ export async function removePendingSet(localId: string): Promise<void> {
   await db.runAsync('delete from pending_sets where local_id = ?', localId);
 }
 
+// --- Notlar (yerel onbellek + bekleyen degisiklikler) ---
+
+function mapNote(r: any): CachedNote {
+  return {
+    id: r.id,
+    user_id: r.user_id,
+    title: r.title ?? null,
+    body: r.body,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+    is_pending: r.is_dirty === 1,
+  };
+}
+
+// Sunucudan gelen listeyi onbellege yazar. Yerelde bekleyen (dirty)
+// kayitlarin ustune YAZMAZ - kullanicinin gonderilmemis degisikligi kaybolmasin.
+export async function cacheRemoteNotes(
+  rows: {
+    id: string; user_id: string; title: string | null;
+    body: string; created_at: string; updated_at: string;
+  }[],
+): Promise<void> {
+  const db = await getDb();
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('delete from notes_cache where is_dirty = 0');
+    for (const r of rows) {
+      const existing = await db.getFirstAsync<{ id: string }>(
+        'select id from notes_cache where id = ?',
+        r.id,
+      );
+      if (existing) continue; // bekleyen yerel degisiklik var
+      await db.runAsync(
+        `insert into notes_cache
+         (id, user_id, title, body, created_at, updated_at, is_dirty, is_deleted)
+         values (?, ?, ?, ?, ?, ?, 0, 0)`,
+        r.id, r.user_id, r.title, r.body, r.created_at, r.updated_at,
+      );
+    }
+  });
+}
+
+export async function saveLocalNote(row: {
+  id: string;
+  user_id: string;
+  title: string | null;
+  body: string;
+  created_at: string;
+  updated_at: string;
+  is_dirty?: boolean;
+}): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `insert or replace into notes_cache
+     (id, user_id, title, body, created_at, updated_at, is_dirty, is_deleted)
+     values (?, ?, ?, ?, ?, ?, ?, 0)`,
+    row.id, row.user_id, row.title, row.body,
+    row.created_at, row.updated_at, row.is_dirty === false ? 0 : 1,
+  );
+}
+
+export async function getLocalNotes(): Promise<CachedNote[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<any>(
+    'select * from notes_cache where is_deleted = 0 order by updated_at desc',
+  );
+  return rows.map(mapNote);
+}
+
+export async function getLocalNote(id: string): Promise<CachedNote | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<any>(
+    'select * from notes_cache where id = ? and is_deleted = 0',
+    id,
+  );
+  return row ? mapNote(row) : null;
+}
+
+export async function markNoteSynced(id: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('update notes_cache set is_dirty = 0 where id = ?', id);
+}
+
+export async function markNoteDeleted(id: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'update notes_cache set is_deleted = 1, is_dirty = 1 where id = ?',
+    id,
+  );
+}
+
+export async function removeLocalNote(id: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('delete from notes_cache where id = ?', id);
+}
+
 export async function clearAllLocal(): Promise<void> {
   const db = await getDb();
-  await db.execAsync('delete from outbox; delete from pending_sets;');
+  await db.execAsync('delete from outbox; delete from pending_sets; delete from notes_cache;');
 }

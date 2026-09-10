@@ -1,8 +1,13 @@
-﻿import NetInfo from '@react-native-community/netinfo';
-import { supabase } from '@/lib/supabase';
-import {
-  peekQueue, dequeue, markFailed, removePendingSet, queueSize,
+﻿import {
+  dequeue, markFailed,
+  markNoteSynced,
+  peekQueue,
+  queueSize,
+  removeLocalNote,
+  removePendingSet,
 } from '@/lib/local-db';
+import { supabase } from '@/lib/supabase';
+import NetInfo from '@react-native-community/netinfo';
 
 type Listener = (state: { pending: number; syncing: boolean }) => void;
 
@@ -49,6 +54,21 @@ async function processItem(item: { id: number; op: string; payload: string }): P
   if (item.op === 'delete_set_log') {
     const { error } = await supabase.from('set_logs').delete().eq('id', payload.id);
     if (error) throw error;
+    return true;
+  }
+
+  if (item.op === 'upsert_note') {
+    // id client tarafinda uretiliyor, upsert idempotent.
+    const { error } = await supabase.from('notes').upsert(payload);
+    if (error) throw error;
+    await markNoteSynced(payload.id);
+    return true;
+  }
+
+  if (item.op === 'delete_note') {
+    const { error } = await supabase.from('notes').delete().eq('id', payload.id);
+    if (error) throw error;
+    await removeLocalNote(payload.id);
     return true;
   }
 

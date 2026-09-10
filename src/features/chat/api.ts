@@ -17,6 +17,11 @@ export type ChatMessage = {
   created_at: string;
 };
 
+export type SendResult = {
+  noteCount: number;      // sunucunun gercekten buldugu not sayisi
+  noteTruncated: boolean; // baglam siniri asildi mi
+};
+
 export class DailyLimitError extends Error {}
 
 async function uid(): Promise<string> {
@@ -45,7 +50,8 @@ export async function sendMessageStream(
   threadId: string,
   content: string,
   onToken: (token: string) => void,
-): Promise<void> {
+  noteIds: string[] = [],
+): Promise<SendResult> {
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;
   if (!accessToken) throw new Error('Oturum bulunamadi.');
@@ -61,7 +67,9 @@ export async function sendMessageStream(
         Authorization: `Bearer ${accessToken}`,
         apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
       },
-      body: JSON.stringify({ thread_id: threadId, message: content }),
+      // Not icerigi client'tan GONDERILMEZ - sadece id'ler.
+      // Sunucu notlari kullanicinin JWT'siyle ceker, RLS devrede.
+      body: JSON.stringify({ thread_id: threadId, message: content, note_ids: noteIds }),
     });
   } catch (e) {
     console.log('CHAT NETWORK ERROR:', e);
@@ -78,6 +86,9 @@ export async function sendMessageStream(
     throw new Error(errBody?.error ?? `Mesaj gonderilemedi (kod: ${response.status}).`);
   }
 
+  const noteCount = Number(response.headers.get('x-note-count') ?? '0') || 0;
+  const noteTruncated = response.headers.get('x-note-truncated') === '1';
+
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
 
@@ -87,4 +98,6 @@ export async function sendMessageStream(
     const text = decoder.decode(value, { stream: true });
     if (text) onToken(text);
   }
+
+  return { noteCount, noteTruncated };
 }

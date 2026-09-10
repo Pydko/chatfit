@@ -1,5 +1,6 @@
 ﻿import { suggestProgression, suggestWeightForTargetReps } from '@/features/progress/progression';
 import { analyzeTrend, estimateWeeksToTarget } from '@/features/progress/trend';
+import { VideoSection } from '@/features/videos/VideoSection';
 import { fetchExerciseById, fetchExerciseHistory } from '@/features/workouts/api';
 import { groupBySession, summarizeSets, summarizeWeight } from '@/features/workouts/summary';
 import { MUSCLE_LABELS, type Exercise, type SetLog } from '@/types/workout';
@@ -200,17 +201,20 @@ export default function ExerciseDetail() {
         )}
 
         {/* Hedef Ağırlık */}
-        {targetWeight && targetWeight > 0 && (
+        {targetWeight !== null && targetWeight > 0 ? (
           <View style={s.targetCard}>
             <Text style={s.targetLabel}>Hedef Ağırlık (6 tekrar)</Text>
             <Text style={s.targetValue}>{targetWeight.toFixed(1)} kg</Text>
-            {weeksToTarget && weeksToTarget.weeks && weeksToTarget.weeks > 0 && (
+            {weeksToTarget?.weeks != null && weeksToTarget.weeks > 0 ? (
               <Text style={s.targetNote}>
                 ~{weeksToTarget.weeks} haftada
               </Text>
-            )}
+            ) : null}
           </View>
-        )}
+        ) : null}
+
+        {/* Form Videolari */}
+        {id ? <VideoSection key={id} exerciseId={id} /> : null}
 
         <Text style={s.sectionTitle}>Geçmiş ({sessions.length} antrenman)</Text>
 
@@ -228,7 +232,7 @@ export default function ExerciseDetail() {
                 {summarizeSets(sets)}  ·  {summarizeWeight(sets)}
               </Text>
               <View style={s.setList}>
-                {sets
+                {[...sets]
                   .sort((a, b) => a.set_index - b.set_index)
                   .map((set) => (
                     <Text key={set.id} style={s.setLine}>
