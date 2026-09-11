@@ -1,3 +1,4 @@
+import type { BodySummary } from '@/features/body/summary';
 import { supabase } from '@/lib/supabase';
 import { fetch as expoFetch } from 'expo/fetch';
 
@@ -20,6 +21,7 @@ export type ChatMessage = {
 export type SendResult = {
   noteCount: number;      // sunucunun gercekten buldugu not sayisi
   noteTruncated: boolean; // baglam siniri asildi mi
+  bodyContext: boolean;   // sunucu vucut verisini prompt'a ekledi mi
 };
 
 export class DailyLimitError extends Error {}
@@ -51,6 +53,7 @@ export async function sendMessageStream(
   content: string,
   onToken: (token: string) => void,
   noteIds: string[] = [],
+  bodySummary: BodySummary | null = null,
 ): Promise<SendResult> {
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;
@@ -69,7 +72,13 @@ export async function sendMessageStream(
       },
       // Not icerigi client'tan GONDERILMEZ - sadece id'ler.
       // Sunucu notlari kullanicinin JWT'siyle ceker, RLS devrede.
-      body: JSON.stringify({ thread_id: threadId, message: content, note_ids: noteIds }),
+      // Vucut verisi ise sadece SAYI olarak gider; prompt metnini sunucu kurar.
+      body: JSON.stringify({
+        thread_id: threadId,
+        message: content,
+        note_ids: noteIds,
+        body_summary: bodySummary,
+      }),
     });
   } catch (e) {
     console.log('CHAT NETWORK ERROR:', e);
@@ -88,6 +97,7 @@ export async function sendMessageStream(
 
   const noteCount = Number(response.headers.get('x-note-count') ?? '0') || 0;
   const noteTruncated = response.headers.get('x-note-truncated') === '1';
+  const bodyContext = response.headers.get('x-body-context') === '1';
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -99,5 +109,5 @@ export async function sendMessageStream(
     if (text) onToken(text);
   }
 
-  return { noteCount, noteTruncated };
+  return { noteCount, noteTruncated, bodyContext };
 }

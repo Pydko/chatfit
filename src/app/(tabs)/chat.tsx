@@ -1,3 +1,5 @@
+import { fetchBodyMetrics, fetchHeightCm } from '@/features/body/api';
+import { buildBodySummary, type BodySummary } from '@/features/body/summary';
 import {
   createNewThread, sendMessageStream,
   type ChatMessage,
@@ -6,7 +8,7 @@ import {
 import { chatMessageSchema } from '@/features/chat/schema';
 import { NotePicker } from '@/features/notes/NotePicker';
 import type { LocalNote } from '@/features/notes/api';
-import { Paperclip, Send, X } from 'lucide-react-native';
+import { Paperclip, Scale, Send, X } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   FlatList,
@@ -16,7 +18,11 @@ import {
   View,
 } from 'react-native';
 
-type DisplayMessage = ChatMessage & { pending?: boolean; noteLabels?: string[] };
+type DisplayMessage = ChatMessage & {
+  pending?: boolean;
+  noteLabels?: string[];
+  withBody?: boolean;
+};
 
 export default function ChatTab() {
   const [thread, setThread] = useState<ChatThread | null>(null);
@@ -27,6 +33,7 @@ export default function ChatTab() {
   const [info, setInfo] = useState<string | null>(null);
   const [attached, setAttached] = useState<LocalNote[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [sendBody, setSendBody] = useState(false);
 
   function removeAttached(id: string) {
     setAttached((prev) => prev.filter((n) => n.id !== id));
@@ -59,6 +66,7 @@ export default function ChatTab() {
 
     const sentNotes = attached;
     const noteIds = sentNotes.map((n) => n.id);
+    const withBody = sendBody;
 
     const userMessage: DisplayMessage = {
       id: `local-user-${Date.now()}`,
@@ -68,6 +76,7 @@ export default function ChatTab() {
       content: parsed.data.content,
       created_at: new Date().toISOString(),
       noteLabels: sentNotes.map((n) => n.title || 'Basliksiz not'),
+      withBody,
     };
 
     const assistantId = `local-assistant-${Date.now()}`;
@@ -84,6 +93,7 @@ export default function ChatTab() {
     setMessages((prev) => [...prev, userMessage, assistantMessage]);
     setInput('');
     setAttached([]);
+    setSendBody(false);
 
     let pendingText = '';
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -98,16 +108,49 @@ export default function ChatTab() {
       );
     };
 
+    // Vucut verisi yalnizca kullanici acikca istediginde gonderilir.
+    // Hesaplar burada degil, test edilmis calculations.ts'te yapilir;
+    // sunucuya sadece sayilar gider.
+    let bodySummary: BodySummary | null = null;
+    if (withBody) {
+      try {
+        const [metrics, height] = await Promise.all([fetchBodyMetrics(), fetchHeightCm()]);
+        bodySummary = buildBodySummary(metrics, height);
+      } catch (e) {
+        console.log('BODY CONTEXT ERROR:', e);
+      }
+    }
+
     try {
-      await sendMessageStream(activeThread.id, parsed.data.content, (token) => {
-        pendingText += token;
-        if (!flushTimer) flushTimer = setTimeout(flushPending, 60);
-      });
+      const result = await sendMessageStream(
+        activeThread.id,
+        parsed.data.content,
+        (token) => {
+          pendingText += token;
+          if (!flushTimer) flushTimer = setTimeout(flushPending, 60);
+        },
+        noteIds,
+        bodySummary,
+      );
       if (flushTimer) clearTimeout(flushTimer);
       flushPending();
       setMessages((prev) =>
         prev.map((m) => (m.id === assistantId ? { ...m, pending: false } : m)),
       );
+
+      // Baglam eksik kaldiysa sessiz kalmayalim: kullanici notunun veya
+      // olcumlerinin okundugunu sanip yanlis cevaba guvenmesin.
+      if (noteIds.length > 0 && result.noteCount < noteIds.length) {
+        setInfo(
+          result.noteCount === 0
+            ? 'Notlarin henuz sunucuya gonderilmemis, bu mesajda okunamadi.'
+            : `${noteIds.length} nottan ${result.noteCount} tanesi okunabildi.`,
+        );
+      } else if (withBody && !result.bodyContext) {
+        setInfo('Vucut olcumu bulunamadi. Profil > Vucut takibi ekranindan olcum ekleyebilirsin.');
+      } else if (result.noteTruncated) {
+        setInfo('Notlarin uzun oldugu icin bir kismi kirpildi.');
+      }
     } catch (e) {
       if (flushTimer) clearTimeout(flushTimer);
       setError(e instanceof Error ? e.message : 'Mesaj gonderilemedi. Tekrar dene.');
@@ -129,7 +172,7 @@ export default function ChatTab() {
         contentContainerStyle={{ padding: 16, gap: 10 }}
         ListEmptyComponent={
           <Text style={s.empty}>
-            Antrenman kocuna merhaba de. Notlarindan birini ekleyerek de sorabilirsin.
+            Antrenman kocuna merhaba de. Notlarindan birini veya vucut olcumlerini ekleyerek de sorabilirsin.
           </Text>
         }
         renderItem={({ item }) => (
@@ -139,6 +182,7 @@ export default function ChatTab() {
                 {item.noteLabels.length} not eklendi: {item.noteLabels.join(', ')}
               </Text>
             )}
+            {item.withBody && <Text style={s.attachedNote}>Vucut olcumleri eklendi</Text>}
             <View style={[s.bubble, item.role === 'user' ? s.bubbleUser : s.bubbleAssistant]}>
               <Text style={item.role === 'user' ? s.bubbleTextUser : s.bubbleTextAssistant}>
                 {item.content || (item.pending ? '...' : '')}
@@ -177,6 +221,15 @@ export default function ChatTab() {
           hitSlop={8}
         >
           <Paperclip color="#555" size={20} />
+        </Pressable>
+
+        <Pressable
+          style={[s.attachButton, sendBody && s.attachButtonActive]}
+          onPress={() => setSendBody((v) => !v)}
+          disabled={sending}
+          hitSlop={8}
+        >
+          <Scale color={sendBody ? '#fff' : '#555'} size={20} />
         </Pressable>
 
         <TextInput
@@ -236,6 +289,7 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: '#ddd',
   },
+  attachButtonActive: { backgroundColor: '#111', borderColor: '#111' },
   input: {
     flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 20,
     paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, maxHeight: 120,
