@@ -1,18 +1,29 @@
-﻿import { useState, useCallback, useMemo } from 'react';
-import {
-  View, Text, Pressable, StyleSheet, Alert, ActivityIndicator, ScrollView,
-} from 'react-native';
-import { useLocalSearchParams, useFocusEffect, useRouter, Stack } from 'expo-router';
-import { ChevronRight } from 'lucide-react-native';
+﻿import { SyncBanner } from '@/components/SyncBanner';
+import { fetchSettings } from '@/features/settings/api';
+import { RestTimerBar } from '@/features/timer/RestTimerBar';
+import { formatDuration, REST_PRESETS, suggestRestSeconds } from '@/features/timer/duration';
+import { useRestTimer } from '@/features/timer/useRestTimer';
 import { ExercisePicker } from '@/features/workouts/ExercisePicker';
 import { SetForm } from '@/features/workouts/SetForm';
-import { SyncBanner } from '@/components/SyncBanner';
 import {
-  fetchSetLogs, addSetLog, deleteSetLog, fetchExercises,
+  addSetLog, deleteSetLog, fetchExercises,
+  fetchSetLogs,
   type LocalSetLog,
 } from '@/features/workouts/api';
 import { groupByExercise, summarizeSets, summarizeWeight } from '@/features/workouts/summary';
 import type { Exercise } from '@/types/workout';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { ChevronRight } from 'lucide-react-native';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 export default function SessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,14 +33,21 @@ export default function SessionScreen() {
   const [selected, setSelected] = useState<Exercise | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [defaultRest, setDefaultRest] = useState(90);
+  const timer = useRestTimer();
 
   const load = useCallback(async () => {
     if (!id) return;
     try {
       setLoading(true);
-      const [logData, exData] = await Promise.all([fetchSetLogs(id), fetchExercises()]);
+      const [logData, exData, settings] = await Promise.all([
+        fetchSetLogs(id),
+        fetchExercises(),
+        fetchSettings(),
+      ]);
       setLogs(logData);
       setExercises(Object.fromEntries(exData.map((e) => [e.id, e])));
+      setDefaultRest(settings.defaultRestSeconds);
     } catch {
       Alert.alert('Hata', 'Antrenman yuklenemedi.');
     } finally {
@@ -59,6 +77,9 @@ export default function SessionScreen() {
       ...input,
     });
     setLogs((prev) => [...prev, created]);
+
+    // Set kaydedildikten sonra dinlenme sayacini otomatik baslat.
+    timer.start(suggestRestSeconds(input, defaultRest));
   }
 
   function handleDeleteExercise(exerciseId: string, sets: LocalSetLog[]) {
@@ -95,7 +116,10 @@ export default function SessionScreen() {
     <>
       <Stack.Screen options={{ headerShown: true, title: 'Antrenman' }} />
       <SyncBanner />
-      <ScrollView style={s.container} contentContainerStyle={{ padding: 16, gap: 16 }}>
+      <ScrollView
+        style={s.container}
+        contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 32 }}
+      >
         <Pressable style={s.pickButton} onPress={() => setPickerOpen(true)}>
           <Text style={s.pickButtonText}>
             {selected ? 'Baska hareket ekle' : 'Hareket sec'}
@@ -104,6 +128,23 @@ export default function SessionScreen() {
 
         {selected && (
           <SetForm exercise={selected} nextSetIndex={nextSetIndex} onSubmit={handleAddSet} />
+        )}
+
+        {!timer.running && logs.length > 0 && (
+          <View style={s.restRow}>
+            <Text style={s.restLabel}>Dinlenme baslat</Text>
+            <View style={s.restChips}>
+              {REST_PRESETS.map((seconds) => (
+                <Pressable
+                  key={seconds}
+                  style={s.restChip}
+                  onPress={() => timer.start(seconds)}
+                >
+                  <Text style={s.restChipText}>{formatDuration(seconds)}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
         )}
 
         {grouped.length > 0 && <Text style={s.sectionTitle}>Bu antrenman</Text>}
@@ -140,6 +181,8 @@ export default function SessionScreen() {
         )}
       </ScrollView>
 
+      <RestTimerBar timer={timer} />
+
       <ExercisePicker
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
@@ -154,6 +197,14 @@ const s = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   pickButton: { borderWidth: 1, borderColor: '#111', borderRadius: 8, padding: 14, alignItems: 'center' },
   pickButtonText: { fontSize: 16, fontWeight: '600' },
+  restRow: { gap: 8 },
+  restLabel: { fontSize: 13, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 },
+  restChips: { flexDirection: 'row', gap: 8 },
+  restChip: {
+    flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8,
+    paddingVertical: 10, alignItems: 'center', backgroundColor: '#fff',
+  },
+  restChipText: { fontSize: 15, fontWeight: '600', color: '#333' },
   sectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 8 },
   empty: { color: '#777' },
   card: {

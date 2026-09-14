@@ -29,6 +29,7 @@
       "expo-secure-store",
       "@react-native-google-signin/google-signin",
       "expo-build-properties",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {
@@ -37,7 +38,8 @@
           "imageWidth": 76
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,

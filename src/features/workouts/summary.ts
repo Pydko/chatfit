@@ -25,8 +25,11 @@ export function summarizeWeight(sets: SetLog[]): string {
   return min === max ? `${min} kg` : `${min}-${max} kg`;
 }
 
-export function groupByExercise(sets: SetLog[]): Map<string, SetLog[]> {
-  const map = new Map<string, SetLog[]>();
+// Generic: LocalSetLog gibi genisletilmis tipler gruplamadan sonra da korunur.
+export function groupByExercise<T extends { exercise_id: string }>(
+  sets: T[],
+): Map<string, T[]> {
+  const map = new Map<string, T[]>();
   for (const set of sets) {
     const list = map.get(set.exercise_id) ?? [];
     list.push(set);
@@ -35,8 +38,10 @@ export function groupByExercise(sets: SetLog[]): Map<string, SetLog[]> {
   return map;
 }
 
-export function groupBySession(sets: SetLog[]): Map<string, SetLog[]> {
-  const map = new Map<string, SetLog[]>();
+export function groupBySession<T extends { session_id: string }>(
+  sets: T[],
+): Map<string, T[]> {
+  const map = new Map<string, T[]>();
   for (const set of sets) {
     const list = map.get(set.session_id) ?? [];
     list.push(set);
