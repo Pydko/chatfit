@@ -21,6 +21,8 @@ export type ProgramDayExercise = {
   position: number;
   target_sets: number | null;
   target_reps: number | null;
+  last_note: string | null;
+  last_note_at: string | null;
 };
 
 async function uid(): Promise<string> {
@@ -40,6 +42,13 @@ export async function fetchActiveProgram(): Promise<Program | null> {
 
   if (error) throw error;
   return data?.[0] ?? null;
+}
+
+// Aktif program yoksa sessizce olusturur; kullanici "program" kavramiyla ugrasmaz.
+export async function ensureActiveProgram(): Promise<Program> {
+  const existing = await fetchActiveProgram();
+  if (existing) return existing;
+  return createProgram('Antrenmanlarim');
 }
 
 export async function createProgram(name: string): Promise<Program> {
@@ -116,6 +125,17 @@ export async function fetchDayExercises(dayId: string): Promise<ProgramDayExerci
   return data ?? [];
 }
 
+export async function fetchDayExerciseById(id: string): Promise<ProgramDayExercise | null> {
+  const { data, error } = await supabase
+    .from('program_day_exercises')
+    .select('*')
+    .eq('id', id)
+    .limit(1);
+
+  if (error) throw error;
+  return data?.[0] ?? null;
+}
+
 export async function addExerciseToDay(input: {
   program_day_id: string;
   exercise_id: string;
@@ -155,6 +175,20 @@ export async function updateDayExerciseTargets(
     .from('program_day_exercises')
     .update(targets)
     .eq('id', id);
+  if (error) throw error;
+}
+
+// Kullanicinin elle yazdigi serbest not: "en son 3 set 60 kg yaptim" gibi.
+export async function updateDayExerciseNote(id: string, note: string): Promise<void> {
+  const trimmed = note.trim();
+  const { error } = await supabase
+    .from('program_day_exercises')
+    .update({
+      last_note: trimmed || null,
+      last_note_at: trimmed ? new Date().toISOString() : null,
+    })
+    .eq('id', id);
+
   if (error) throw error;
 }
 

@@ -1,4 +1,5 @@
-﻿import { Tabs } from 'expo-router';
+﻿import { colors } from '@/theme/colors';
+import { Tabs } from 'expo-router';
 import { Dumbbell, FileText, History, MessageCircle, User } from 'lucide-react-native';
 
 export default function TabsLayout() {
@@ -6,8 +7,12 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: true,
-        tabBarActiveTintColor: '#111',
-        tabBarInactiveTintColor: '#999',
+        headerStyle: { backgroundColor: colors.surface },
+        headerTitleStyle: { color: colors.textPrimary },
+        headerShadowVisible: false,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
       }}
     >
       <Tabs.Screen

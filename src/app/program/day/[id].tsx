@@ -1,19 +1,30 @@
-﻿import { useState, useCallback } from 'react';
-import {
-  View, Text, TextInput, Pressable, StyleSheet, Alert, ActivityIndicator, ScrollView,
-} from 'react-native';
-import { useLocalSearchParams, useFocusEffect, Stack } from 'expo-router';
-import { ExercisePicker } from '@/features/workouts/ExercisePicker';
+﻿import { ExercisePicker } from '@/features/workouts/ExercisePicker';
 import { fetchExercises } from '@/features/workouts/api';
 import {
-  fetchProgramDays, fetchDayExercises, addExerciseToDay,
-  removeExerciseFromDay, renameProgramDay, deleteProgramDay, fetchActiveProgram,
+  addExerciseToDay,
+  deleteProgramDay, fetchActiveProgram,
+  fetchDayExercises,
+  fetchProgramDays,
+  removeExerciseFromDay, renameProgramDay,
   type ProgramDay, type ProgramDayExercise,
 } from '@/features/workouts/programs';
+import { colors } from '@/theme/colors';
 import type { Exercise } from '@/types/workout';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text, TextInput,
+  View,
+} from 'react-native';
 
 export default function ProgramDayScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const [day, setDay] = useState<ProgramDay | null>(null);
   const [items, setItems] = useState<ProgramDayExercise[]>([]);
   const [catalog, setCatalog] = useState<Record<string, Exercise>>({});
@@ -100,6 +111,7 @@ export default function ProgramDayScreen() {
         onPress: async () => {
           try {
             await deleteProgramDay(day.id);
+            router.back();
           } catch {
             Alert.alert('Hata', 'Silinemedi.');
           }
@@ -109,7 +121,11 @@ export default function ProgramDayScreen() {
   }
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator size="large" /></View>;
+    return (
+      <View style={s.center}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
   }
 
   return (
@@ -140,6 +156,9 @@ export default function ProgramDayScreen() {
             <Pressable
               key={item.id}
               style={s.row}
+              onPress={() =>
+                router.push({ pathname: '/program/day-exercise/[id]', params: { id: item.id } })
+              }
               onLongPress={() => handleRemove(item.id, ex?.name ?? 'Hareket')}
             >
               <View style={{ flex: 1 }}>
@@ -147,6 +166,11 @@ export default function ProgramDayScreen() {
                 {item.target_sets && item.target_reps && (
                   <Text style={s.rowMeta}>
                     Hedef: {item.target_sets} set x {item.target_reps} tekrar
+                  </Text>
+                )}
+                {item.last_note && (
+                  <Text style={s.rowNote} numberOfLines={1}>
+                    Not: {item.last_note}
                   </Text>
                 )}
               </View>
@@ -160,7 +184,7 @@ export default function ProgramDayScreen() {
         </Pressable>
 
         {items.length > 0 && (
-          <Text style={s.hint}>Cikarmak icin harekete uzun bas.</Text>
+          <Text style={s.hint}>Duzenlemek/not eklemek icin dokun, cikarmak icin uzun bas.</Text>
         )}
 
         <Pressable onPress={handleDeleteDay} style={{ marginTop: 24 }}>
@@ -178,28 +202,51 @@ export default function ProgramDayScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  card: { backgroundColor: '#f5f5f5', borderRadius: 12, padding: 20, gap: 8 },
-  cardTitle: { fontSize: 22, fontWeight: '700' },
-  cardMeta: { fontSize: 14, color: '#666' },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 8 },
-  empty: { color: '#777' },
+  container: { flex: 1, backgroundColor: colors.background },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  cardTitle: { fontSize: 22, fontWeight: '700', color: colors.textPrimary },
+  cardMeta: { fontSize: 14, color: colors.textSecondary },
+  sectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 8, color: colors.textPrimary },
+  empty: { color: colors.textSecondary },
   row: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#eee',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
-  rowName: { fontSize: 16, fontWeight: '500' },
-  rowMeta: { fontSize: 14, color: '#666', marginTop: 2 },
-  rowIndex: { fontSize: 14, color: '#999' },
+  rowName: { fontSize: 16, fontWeight: '500', color: colors.textPrimary },
+  rowMeta: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
+  rowNote: { fontSize: 13, color: colors.primary, marginTop: 2, fontStyle: 'italic' },
+  rowIndex: { fontSize: 14, color: colors.textMuted },
   input: {
-    borderWidth: 1, borderColor: '#ccc', borderRadius: 8,
-    padding: 12, fontSize: 16, backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: colors.background,
+    color: colors.textPrimary,
   },
-  primary: { backgroundColor: '#111', borderRadius: 8, padding: 14, alignItems: 'center' },
-  primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  secondary: { borderWidth: 1, borderColor: '#111', borderRadius: 8, padding: 14, alignItems: 'center' },
-  secondaryText: { fontSize: 16, fontWeight: '600' },
-  hint: { fontSize: 12, color: '#999', textAlign: 'center' },
-  danger: { color: '#c00', textAlign: 'center' },
+  primary: { backgroundColor: colors.primary, borderRadius: 12, padding: 14, alignItems: 'center' },
+  primaryText: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '600' },
+  secondary: {
+    borderWidth: 1.5, borderColor: colors.primary, borderRadius: 12, padding: 14,
+    alignItems: 'center', backgroundColor: colors.surface,
+  },
+  secondaryText: { color: colors.primary, fontSize: 16, fontWeight: '600' },
+  hint: { fontSize: 12, color: colors.textMuted, textAlign: 'center' },
+  danger: { color: colors.danger, textAlign: 'center' },
 });

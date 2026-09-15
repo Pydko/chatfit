@@ -1,18 +1,25 @@
-﻿import { useState, useCallback } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert, ActivityIndicator, ScrollView } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { startSession, fetchSessions, fetchSetLogs, fetchExercises } from '@/features/workouts/api';
+﻿import { fetchSessions, fetchSetLogs, startSession } from '@/features/workouts/api';
 import {
-  fetchActiveProgram, suggestNextDay, startSessionForDay, fetchDayExercises,
+  addProgramDay,
+  ensureActiveProgram,
+  fetchDayExercises,
+  fetchProgramDays,
+  renameProgramDay,
+  startSessionForDay,
   type Program, type ProgramDay,
 } from '@/features/workouts/programs';
-import type { WorkoutSession, Exercise } from '@/types/workout';
+import { colors } from '@/theme/colors';
+import type { WorkoutSession } from '@/types/workout';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Pencil, Play } from 'lucide-react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export default function WorkoutTab() {
   const router = useRouter();
   const [program, setProgram] = useState<Program | null>(null);
-  const [nextDay, setNextDay] = useState<ProgramDay | null>(null);
-  const [dayExercises, setDayExercises] = useState<string[]>([]);
+  const [days, setDays] = useState<ProgramDay[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [active, setActive] = useState<WorkoutSession | null>(null);
   const [setCount, setSetCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -35,31 +42,15 @@ export default function WorkoutTab() {
         setSetCount(0);
       }
 
-      const prog = await fetchActiveProgram();
+      const prog = await ensureActiveProgram();
       setProgram(prog);
-      setNextDay(null);
-      setDayExercises([]);
 
-      if (prog) {
-        const day = await suggestNextDay(prog.id);
-        setNextDay(day);
-
-        if (day) {
-          const [items, catalog] = await Promise.all([
-            fetchDayExercises(day.id),
-            fetchExercises(),
-          ]);
-          const byId = new Map(catalog.map((e: Exercise) => [e.id, e.name]));
-          setDayExercises(
-            items.map((i) => {
-              const name = byId.get(i.exercise_id) ?? 'Hareket';
-              return i.target_sets && i.target_reps
-                ? `${name}  ${i.target_sets}x${i.target_reps}`
-                : name;
-            }),
-          );
-        }
-      }
+      const d = await fetchProgramDays(prog.id);
+      setDays(d);
+      const entries = await Promise.all(
+        d.map(async (day) => [day.id, (await fetchDayExercises(day.id)).length] as const),
+      );
+      setCounts(Object.fromEntries(entries));
     } catch (e) {
       console.log('WORKOUT TAB ERROR:', e);
       Alert.alert('Hata', 'Veriler yuklenemedi.');
@@ -70,10 +61,35 @@ export default function WorkoutTab() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  async function handleStart(day?: ProgramDay | null) {
+  async function handleAddDay() {
+    if (!program) return;
     try {
       setBusy(true);
-      const session = day ? await startSessionForDay(day) : await startSession();
+      await addProgramDay(program.id);
+      await load();
+    } catch {
+      Alert.alert('Hata', 'Antrenman eklenemedi.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleStart(day: ProgramDay) {
+    try {
+      setBusy(true);
+      const session = await startSessionForDay(day);
+      router.push({ pathname: '/session/[id]', params: { id: session.id } });
+    } catch {
+      Alert.alert('Hata', 'Antrenman baslatilamadi.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleFreeStart() {
+    try {
+      setBusy(true);
+      const session = await startSession();
       router.push({ pathname: '/session/[id]', params: { id: session.id } });
     } catch {
       Alert.alert('Hata', 'Antrenman baslatilamadi.');
@@ -83,7 +99,11 @@ export default function WorkoutTab() {
   }
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator size="large" /></View>;
+    return (
+      <View style={s.center}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
   }
 
   return (
@@ -102,53 +122,34 @@ export default function WorkoutTab() {
         </View>
       )}
 
-      {!active && program && nextDay && (
+      {days.length === 0 && (
         <View style={s.card}>
-          <Text style={s.cardLabel}>Siradaki gun</Text>
-          <Text style={s.cardTitle}>{nextDay.name}</Text>
-
-          {dayExercises.length > 0 ? (
-            <View style={s.exerciseList}>
-              {dayExercises.map((line, i) => (
-                <Text key={i} style={s.exerciseLine}>{line}</Text>
-              ))}
-            </View>
-          ) : (
-            <Text style={s.cardMeta}>Bu gune henuz hareket eklemedin.</Text>
-          )}
-
-          <Pressable style={[s.primary, busy && s.disabled]} onPress={() => handleStart(nextDay)} disabled={busy}>
-            <Text style={s.primaryText}>
-              {busy ? 'Baslatiliyor...' : `${nextDay.name} gunune basla`}
-            </Text>
-          </Pressable>
-        </View>
-      )}
-
-      {!active && program && !nextDay && (
-        <View style={s.card}>
-          <Text style={s.cardTitle}>{program.name}</Text>
-          <Text style={s.cardMeta}>Programina henuz gun eklemedin.</Text>
-        </View>
-      )}
-
-      {!active && !program && (
-        <View style={s.card}>
-          <Text style={s.cardTitle}>Henuz programin yok</Text>
+          <Text style={s.cardTitle}>Henuz antrenmanin yok</Text>
           <Text style={s.cardMeta}>
-            Kendi antrenman gunlerini olustur, uygulama siradaki gunu otomatik takip etsin.
+            Asagidan yeni bir antrenman olustur, sonra icine hareketlerini ekle.
           </Text>
         </View>
       )}
 
-      <Pressable style={s.secondary} onPress={() => router.push('/program')}>
-        <Text style={s.secondaryText}>
-          {program ? 'Programi duzenle' : 'Program olustur'}
-        </Text>
+      {days.map((day) => (
+        <DayRow
+          key={day.id}
+          day={day}
+          exerciseCount={counts[day.id] ?? 0}
+          busy={busy}
+          canStart={!active}
+          onOpen={() => router.push({ pathname: '/program/day/[id]', params: { id: day.id } })}
+          onStart={() => handleStart(day)}
+          onRenamed={load}
+        />
+      ))}
+
+      <Pressable style={[s.secondary, busy && s.disabled]} onPress={handleAddDay} disabled={busy}>
+        <Text style={s.secondaryText}>+ Yeni Antrenman</Text>
       </Pressable>
 
       {!active && (
-        <Pressable style={s.tertiary} onPress={() => handleStart(null)} disabled={busy}>
+        <Pressable style={s.tertiary} onPress={handleFreeStart} disabled={busy}>
           <Text style={s.tertiaryText}>Programsiz antrenman baslat</Text>
         </Pressable>
       )}
@@ -156,20 +157,142 @@ export default function WorkoutTab() {
   );
 }
 
+function DayRow({
+  day,
+  exerciseCount,
+  busy,
+  canStart,
+  onOpen,
+  onStart,
+  onRenamed,
+}: {
+  day: ProgramDay;
+  exerciseCount: number;
+  busy: boolean;
+  canStart: boolean;
+  onOpen: () => void;
+  onStart: () => void;
+  onRenamed: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(day.name);
+
+  async function save() {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    try {
+      await renameProgramDay(day.id, trimmed);
+      setEditing(false);
+      onRenamed();
+    } catch {
+      Alert.alert('Hata', 'Ad degistirilemedi.');
+    }
+  }
+
+  if (editing) {
+    return (
+      <View style={s.dayCard}>
+        <TextInput
+          style={s.input}
+          value={name}
+          onChangeText={setName}
+          autoFocus
+          onSubmitEditing={save}
+        />
+        <Pressable style={s.saveButton} onPress={save}>
+          <Text style={s.saveButtonText}>Kaydet</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={s.dayCard}>
+      <Pressable style={{ flex: 1 }} onPress={onOpen}>
+        <Text style={s.dayName}>{day.name}</Text>
+        <Text style={s.dayMeta}>{exerciseCount} hareket</Text>
+      </Pressable>
+      {canStart && (
+        <Pressable onPress={onStart} disabled={busy} hitSlop={10} style={s.iconButton}>
+          <Play color={colors.primary} size={18} />
+        </Pressable>
+      )}
+      <Pressable onPress={() => setEditing(true)} hitSlop={10} style={s.iconButton}>
+        <Pencil color={colors.textMuted} size={18} />
+      </Pressable>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
-  container: { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  card: { backgroundColor: '#f5f5f5', borderRadius: 12, padding: 20, gap: 10 },
-  cardLabel: { fontSize: 13, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 },
-  cardTitle: { fontSize: 24, fontWeight: '700' },
-  cardMeta: { fontSize: 15, color: '#555' },
-  exerciseList: { gap: 4, marginVertical: 4 },
-  exerciseLine: { fontSize: 15, color: '#333' },
-  primary: { backgroundColor: '#111', borderRadius: 8, padding: 16, alignItems: 'center', marginTop: 8 },
-  primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  secondary: { borderWidth: 1, borderColor: '#111', borderRadius: 8, padding: 14, alignItems: 'center' },
-  secondaryText: { fontSize: 16, fontWeight: '600' },
+  container: { flex: 1, backgroundColor: colors.background },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  cardLabel: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  cardTitle: { fontSize: 24, fontWeight: '700', color: colors.textPrimary },
+  cardMeta: { fontSize: 15, color: colors.textSecondary },
+  primary: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  primaryText: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '600' },
+  secondary: {
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+  },
+  secondaryText: { color: colors.primary, fontSize: 16, fontWeight: '600' },
   tertiary: { padding: 12, alignItems: 'center' },
-  tertiaryText: { color: '#555', fontSize: 15 },
+  tertiaryText: { color: colors.textSecondary, fontSize: 15 },
   disabled: { opacity: 0.5 },
+  dayCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    gap: 4,
+  },
+  dayName: { fontSize: 17, fontWeight: '600', color: colors.textPrimary },
+  dayMeta: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
+  iconButton: { padding: 6 },
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 16,
+    backgroundColor: colors.background,
+    color: colors.textPrimary,
+  },
+  saveButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  saveButtonText: { color: colors.textOnPrimary, fontSize: 14, fontWeight: '600' },
 });
