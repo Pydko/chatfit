@@ -23,6 +23,7 @@ export type WorkoutSession = {
   title: string | null;
   notes: string | null;
   duration_minutes: number | null;
+  program_day_id: string | null;
 };
 
 export type SetLog = {

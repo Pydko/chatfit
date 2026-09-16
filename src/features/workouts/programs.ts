@@ -1,4 +1,5 @@
 ﻿import { supabase } from '@/lib/supabase';
+import type { WorkoutSession } from '@/types/workout';
 
 export type Program = {
   id: string;
@@ -223,4 +224,20 @@ export async function startSessionForDay(day: ProgramDay) {
 
   if (error) throw error;
   return data;
+}
+
+export async function findTodaySessionForDay(programDayId: string): Promise<WorkoutSession | null> {
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const { data, error } = await supabase
+    .from('workout_sessions')
+    .select('*')
+    .eq('program_day_id', programDayId)
+    .gte('performed_at', startOfDay.toISOString())
+    .order('performed_at', { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+  return data?.[0] ?? null;
 }
