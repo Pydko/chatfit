@@ -49,7 +49,7 @@ export default function ProgramDayScreen() {
       setItems(list);
       setCatalog(Object.fromEntries(ex.map((e) => [e.id, e])));
     } catch {
-      Alert.alert('Hata', 'Gun yuklenemedi.');
+      Alert.alert('Error', 'Could not load day.');
     } finally {
       setLoading(false);
     }
@@ -64,7 +64,7 @@ export default function ProgramDayScreen() {
       setEditingName(false);
       await load();
     } catch {
-      Alert.alert('Hata', 'Ad degistirilemedi.');
+      Alert.alert('Error', 'Could not rename.');
     }
   }
 
@@ -79,22 +79,22 @@ export default function ProgramDayScreen() {
       });
       await load();
     } catch {
-      Alert.alert('Hata', 'Hareket eklenemedi.');
+      Alert.alert('Error', 'Could not add exercise.');
     }
   }
 
   function handleRemove(itemId: string, exerciseName: string) {
-    Alert.alert(exerciseName, 'Bu hareket gunden cikarilacak.', [
-      { text: 'Vazgec', style: 'cancel' },
+    Alert.alert(exerciseName, 'This exercise will be removed from the day.', [
+      { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Cikar',
+        text: 'Remove',
         style: 'destructive',
         onPress: async () => {
           try {
             await removeExerciseFromDay(itemId);
             await load();
           } catch {
-            Alert.alert('Hata', 'Cikarilamadi.');
+            Alert.alert('Error', 'Could not remove.');
           }
         },
       },
@@ -103,17 +103,17 @@ export default function ProgramDayScreen() {
 
   function handleDeleteDay() {
     if (!day) return;
-    Alert.alert('Gunu sil', `${day.name} ve icindeki hareketler silinecek.`, [
-      { text: 'Vazgec', style: 'cancel' },
+    Alert.alert('Delete Day', `${day.name} and all its exercises will be deleted.`, [
+      { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Sil',
+        text: 'Delete',
         style: 'destructive',
         onPress: async () => {
           try {
             await deleteProgramDay(day.id);
             router.back();
           } catch {
-            Alert.alert('Hata', 'Silinemedi.');
+            Alert.alert('Error', 'Could not delete.');
           }
         },
       },
@@ -130,25 +130,25 @@ export default function ProgramDayScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: day?.name ?? 'Gun' }} />
+      <Stack.Screen options={{ headerShown: true, title: day?.name ?? 'Day' }} />
       <ScrollView style={s.container} contentContainerStyle={{ padding: 16, gap: 16 }}>
         {editingName ? (
           <View style={s.card}>
             <TextInput style={s.input} value={name} onChangeText={setName} autoFocus />
             <Pressable style={s.primary} onPress={handleSaveName}>
-              <Text style={s.primaryText}>Kaydet</Text>
+              <Text style={s.primaryText}>Save</Text>
             </Pressable>
           </View>
         ) : (
           <Pressable style={s.card} onPress={() => setEditingName(true)}>
             <Text style={s.cardTitle}>{day?.name}</Text>
-            <Text style={s.cardMeta}>Adi degistirmek icin dokun (orn. Push, Pull, Bacak)</Text>
+            <Text style={s.cardMeta}>Tap to change name (e.g. Push, Pull, Legs)</Text>
           </Pressable>
         )}
 
-        <Text style={s.sectionTitle}>Hareketler</Text>
+        <Text style={s.sectionTitle}>Exercises</Text>
 
-        {items.length === 0 && <Text style={s.empty}>Henuz hareket eklemedin.</Text>}
+        {items.length === 0 && <Text style={s.empty}>No exercises added yet.</Text>}
 
         {items.map((item) => {
           const ex = catalog[item.exercise_id];
@@ -159,18 +159,18 @@ export default function ProgramDayScreen() {
               onPress={() =>
                 router.push({ pathname: '/program/day-exercise/[id]', params: { id: item.id } })
               }
-              onLongPress={() => handleRemove(item.id, ex?.name ?? 'Hareket')}
+              onLongPress={() => handleRemove(item.id, ex?.name ?? 'Exercise')}
             >
               <View style={{ flex: 1 }}>
-                <Text style={s.rowName}>{ex?.name ?? 'Bilinmeyen hareket'}</Text>
+                <Text style={s.rowName}>{ex?.name ?? 'Unknown exercise'}</Text>
                 {item.target_sets && item.target_reps && (
                   <Text style={s.rowMeta}>
-                    Hedef: {item.target_sets} set x {item.target_reps} tekrar
+                    Target: {item.target_sets} sets x {item.target_reps} reps
                   </Text>
                 )}
                 {item.last_note && (
                   <Text style={s.rowNote} numberOfLines={1}>
-                    Not: {item.last_note}
+                    Note: {item.last_note}
                   </Text>
                 )}
               </View>
@@ -180,15 +180,15 @@ export default function ProgramDayScreen() {
         })}
 
         <Pressable style={s.secondary} onPress={() => setPickerOpen(true)}>
-          <Text style={s.secondaryText}>+ Hareket ekle</Text>
+          <Text style={s.secondaryText}>+ Add exercise</Text>
         </Pressable>
 
         {items.length > 0 && (
-          <Text style={s.hint}>Duzenlemek/not eklemek icin dokun, cikarmak icin uzun bas.</Text>
+          <Text style={s.hint}>Tap to edit/add notes, long press to remove.</Text>
         )}
 
         <Pressable onPress={handleDeleteDay} style={{ marginTop: 24 }}>
-          <Text style={s.danger}>Bu gunu sil</Text>
+          <Text style={s.danger}>Delete this day</Text>
         </Pressable>
       </ScrollView>
 

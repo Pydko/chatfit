@@ -116,7 +116,6 @@ export async function queueSize(): Promise<number> {
   return row?.n ?? 0;
 }
 
-// --- Bekleyen setler (arayuzde gostermek icin) ---
 
 export async function savePendingSet(row: {
   local_id: string;
@@ -164,7 +163,6 @@ export async function removePendingSet(localId: string): Promise<void> {
   await db.runAsync('delete from pending_sets where local_id = ?', localId);
 }
 
-// --- Notlar (yerel onbellek + bekleyen degisiklikler) ---
 
 function mapNote(r: any): CachedNote {
   return {
@@ -178,8 +176,7 @@ function mapNote(r: any): CachedNote {
   };
 }
 
-// Sunucudan gelen listeyi onbellege yazar. Yerelde bekleyen (dirty)
-// kayitlarin ustune YAZMAZ - kullanicinin gonderilmemis degisikligi kaybolmasin.
+
 export async function cacheRemoteNotes(
   rows: {
     id: string; user_id: string; title: string | null;

@@ -27,7 +27,7 @@ function makeSet(
 }
 
 describe('suggestProgression - Double Progression', () => {
-  it('hiç veri yoksa no_data döner', () => {
+  it('returns no_data if there is no data', () => {
     const result = suggestProgression({
       lastSessionSets: [],
       previousSessions: [],
@@ -37,7 +37,7 @@ describe('suggestProgression - Double Progression', () => {
     expect(result.confidence).toBe('low');
   });
 
-  it('tüm setler hedef aralığının üstünde (minReps >= targetRepsMax)', () => {
+  it('all sets above target range (minReps >= targetRepsMax)', () => {
     const lastSession = [
       makeSet(80, 13),
       makeSet(80, 12),
@@ -57,7 +57,7 @@ describe('suggestProgression - Double Progression', () => {
     expect(result.confidence).toBe('high');
   });
 
-  it('aralık içinde -> add_reps öner', () => {
+  it('within range -> suggest add_reps', () => {
     const lastSession = [
       makeSet(80, 9),
       makeSet(80, 10),
@@ -80,7 +80,7 @@ describe('suggestProgression - Double Progression', () => {
     expect(result.confidence).toBe('high');
   });
 
-  it('alt sınırın altında -> hold öner', () => {
+  it('below lower bound -> suggest hold', () => {
     const lastSession = [
       makeSet(80, 5),
       makeSet(80, 6),
@@ -98,7 +98,7 @@ describe('suggestProgression - Double Progression', () => {
     expect(result.confidence).toBe('high');
   });
 
-  it('deload: son 3 seansta performans dustu', () => {
+  it('deload: performance dropped in the last 3 sessions', () => {
     const lastSession = [
       makeSet(75, 5),
     ];
@@ -121,12 +121,12 @@ describe('suggestProgression - Double Progression', () => {
     expect(result.weightKg).toBeDefined();
     expect(result.weightKg!).toBeLessThan(75);
 
-    expect(result.reason || '').toContain('dustu');
+    expect(result.reason || '').toContain('dropped');
 
     expect(result.confidence).toBe('medium');
   });
 
-  it('ısınma setlerini hariç tutar', () => {
+  it('excludes warmup sets', () => {
     const lastSession = [
       makeSet(20, 10, true),
       makeSet(80, 8),
@@ -144,7 +144,7 @@ describe('suggestProgression - Double Progression', () => {
     expect(result.weightKg).toBe(80);
   });
 
-  it('özel increment kullanır', () => {
+  it('uses custom increment', () => {
     const lastSession = [
       makeSet(30, 13),
       makeSet(30, 12),
@@ -164,7 +164,7 @@ describe('suggestProgression - Double Progression', () => {
 });
 
 describe('suggestWeightForTargetReps', () => {
-  it('hedef tekrar için ağırlık önerir', () => {
+  it('suggests weight for target reps', () => {
     const sets = [
       makeSet(80, 5),
     ];
@@ -175,7 +175,7 @@ describe('suggestWeightForTargetReps', () => {
     expect(suggestion).toBeLessThan(75);
   });
 
-  it('çalışma seti yoksa 0 döner', () => {
+  it('returns 0 if there are no working sets', () => {
     const sets = [
       makeSet(20, 10, true),
     ];
@@ -185,7 +185,7 @@ describe('suggestWeightForTargetReps', () => {
     expect(suggestion).toBe(0);
   });
 
-  it('en yüksek 1RM\'yi temel alır', () => {
+  it('bases suggestion on the highest 1RM', () => {
     const sets = [
       makeSet(80, 5),
       makeSet(60, 10),

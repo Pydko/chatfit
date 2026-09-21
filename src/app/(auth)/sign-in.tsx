@@ -1,9 +1,9 @@
-﻿import { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
-import { Link } from 'expo-router';
-import { supabase } from '@/lib/supabase';
+﻿import { GoogleButton } from '@/features/auth/GoogleButton';
 import { credentialsSchema } from '@/features/auth/schemas';
-import { GoogleButton } from '@/features/auth/GoogleButton';
+import { supabase } from '@/lib/supabase';
+import { Link } from 'expo-router';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export default function SignIn() {
   const [email, setEmail] = useState('');
@@ -24,7 +24,7 @@ export default function SignIn() {
     setBusy(false);
 
     if (authError) {
-      setError('E-posta veya sifre hatali.');
+      setError('Invalid email or password.');
     }
   }
 
@@ -33,11 +33,11 @@ export default function SignIn() {
       <Text style={s.title}>ChatFit</Text>
 
       <GoogleButton />
-      <Text style={s.divider}>veya</Text>
+      <Text style={s.divider}>or</Text>
 
       <TextInput
         style={s.input}
-        placeholder="E-posta"
+        placeholder="Email"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -46,7 +46,7 @@ export default function SignIn() {
       />
       <TextInput
         style={s.input}
-        placeholder="Sifre"
+        placeholder="Password"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -56,10 +56,10 @@ export default function SignIn() {
       {error && <Text style={s.error}>{error}</Text>}
 
       <Pressable style={[s.button, busy && s.disabled]} onPress={handleSignIn} disabled={busy}>
-        <Text style={s.buttonText}>{busy ? 'Giris yapiliyor...' : 'Giris yap'}</Text>
+        <Text style={s.buttonText}>{busy ? 'Signing in...' : 'Sign In'}</Text>
       </Pressable>
 
-      <Link href="/sign-up" style={s.link}>Hesabin yok mu? Kaydol</Link>
+      <Link href="/sign-up" style={s.link}>Don't have an account? Sign up</Link>
     </View>
   );
 }

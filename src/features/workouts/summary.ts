@@ -1,19 +1,19 @@
 ﻿import type { SetLog } from '@/types/workout';
 
-// "3 set x 12 tekrar" ya da tekrarlar farkliysa "3 set (12, 10, 8)"
+// "3 sets x 12 reps" or if reps vary "3 sets (12, 10, 8)"
 export function summarizeSets(sets: SetLog[]): string {
   const working = sets.filter((s) => !s.is_warmup);
-  if (working.length === 0) return 'Sadece isinma';
+  if (working.length === 0) return 'Warmup only';
 
   const reps = working.map((s) => s.reps);
   const allSame = reps.every((r) => r === reps[0]);
 
   return allSame
-    ? `${working.length} set x ${reps[0]} tekrar`
-    : `${working.length} set (${reps.join(', ')})`;
+    ? `${working.length} sets x ${reps[0]} reps`
+    : `${working.length} sets (${reps.join(', ')})`;
 }
 
-// "60 kg" ya da agirlik degistiyse "60-70 kg"
+// "60 kg" or if weight changes "60-70 kg"
 export function summarizeWeight(sets: SetLog[]): string {
   const working = sets.filter((s) => !s.is_warmup);
   if (working.length === 0) return '';
@@ -25,7 +25,7 @@ export function summarizeWeight(sets: SetLog[]): string {
   return min === max ? `${min} kg` : `${min}-${max} kg`;
 }
 
-// Generic: LocalSetLog gibi genisletilmis tipler gruplamadan sonra da korunur.
+// Generic: Extended types like LocalSetLog are preserved after grouping.
 export function groupByExercise<T extends { exercise_id: string }>(
   sets: T[],
 ): Map<string, T[]> {

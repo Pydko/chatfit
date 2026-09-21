@@ -14,12 +14,10 @@ Notifications.setNotificationHandler({
   }),
 });
 
-/** Izin ve Android kanali. Birden fazla cagrilabilir, bir kez calisir. */
+
 export async function ensureNotificationSetup(): Promise<boolean> {
   try {
     if (Platform.OS === 'android' && !configured) {
-      // sound alani bilincli olarak yok: verilirse ozel bir ses dosyasi aranir,
-      // atlanirsa sistemin varsayilan bildirim sesi calar.
       await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
         name: 'Dinlenme sayaci',
         importance: Notifications.AndroidImportance.HIGH,
@@ -39,7 +37,7 @@ export async function ensureNotificationSetup(): Promise<boolean> {
   }
 }
 
-/** Sayac bitince bildirim planla. Basarisiz olursa null doner - uygulama calismaya devam eder. */
+
 export async function scheduleRestFinished(seconds: number): Promise<string | null> {
   try {
     const granted = await ensureNotificationSetup();
@@ -49,7 +47,7 @@ export async function scheduleRestFinished(seconds: number): Promise<string | nu
       content: {
         title: 'Dinlenme bitti',
         body: 'Siradaki sete hazirsin.',
-        sound: true, // varsayilan ses; string verilirse ozel dosya aranir
+        sound: true, 
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -67,6 +65,5 @@ export async function cancelScheduled(id: string | null): Promise<void> {
   try {
     await Notifications.cancelScheduledNotificationAsync(id);
   } catch {
-    // zaten tetiklenmis olabilir
   }
 }

@@ -1,8 +1,8 @@
-﻿import { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
-import { Link } from 'expo-router';
+﻿import { credentialsSchema } from '@/features/auth/schemas';
 import { supabase } from '@/lib/supabase';
-import { credentialsSchema } from '@/features/auth/schemas';
+import { Link } from 'expo-router';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export default function SignUp() {
   const [email, setEmail] = useState('');
@@ -27,7 +27,7 @@ export default function SignUp() {
     setBusy(false);
 
     if (authError) {
-      setError('Kayit olusturulamadi. Lutfen tekrar dene.');
+      setError('Could not create account. Please try again.');
       return;
     }
     setSent(true);
@@ -36,22 +36,22 @@ export default function SignUp() {
   if (sent) {
     return (
       <View style={s.container}>
-        <Text style={s.title}>E-postani kontrol et</Text>
+        <Text style={s.title}>Check your email</Text>
         <Text style={s.info}>
-          Hesabini aktiflestirmek icin gonderdigimiz baglantiya tikla, sonra giris yap.
+          Click the link we sent to activate your account, then sign in.
         </Text>
-        <Link href="/sign-in" style={s.link}>Giris ekranina don</Link>
+        <Link href="/sign-in" style={s.link}>Back to sign in</Link>
       </View>
     );
   }
 
   return (
     <View style={s.container}>
-      <Text style={s.title}>Kaydol</Text>
+      <Text style={s.title}>Sign Up</Text>
 
       <TextInput
         style={s.input}
-        placeholder="E-posta"
+        placeholder="Email"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -59,7 +59,7 @@ export default function SignUp() {
       />
       <TextInput
         style={s.input}
-        placeholder="Sifre (en az 10 karakter)"
+        placeholder="Password (at least 10 characters)"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -69,10 +69,10 @@ export default function SignUp() {
       {error && <Text style={s.error}>{error}</Text>}
 
       <Pressable style={[s.button, busy && s.disabled]} onPress={handleSignUp} disabled={busy}>
-        <Text style={s.buttonText}>{busy ? 'Olusturuluyor...' : 'Hesap olustur'}</Text>
+        <Text style={s.buttonText}>{busy ? 'Creating...' : 'Create account'}</Text>
       </Pressable>
 
-      <Link href="/sign-in" style={s.link}>Zaten hesabin var mi? Giris yap</Link>
+      <Link href="/sign-in" style={s.link}>Already have an account? Sign in</Link>
     </View>
   );
 }

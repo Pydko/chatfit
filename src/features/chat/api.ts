@@ -19,9 +19,9 @@ export type ChatMessage = {
 };
 
 export type SendResult = {
-  noteCount: number;      // sunucunun gercekten buldugu not sayisi
-  noteTruncated: boolean; // baglam siniri asildi mi
-  bodyContext: boolean;   // sunucu vucut verisini prompt'a ekledi mi
+  noteCount: number;      // Number of notes actually found by the server
+  noteTruncated: boolean; // Whether the context limit was exceeded
+  bodyContext: boolean;   // Whether the server included body data in the prompt
 };
 
 export class DailyLimitError extends Error {}
@@ -29,18 +29,18 @@ export class DailyLimitError extends Error {}
 async function uid(): Promise<string> {
   const { data } = await supabase.auth.getUser();
   const id = data.user?.id;
-  if (!id) throw new Error('Oturum bulunamadi.');
+  if (!id) throw new Error('Session not found.');
   return id;
 }
 
-// Her sohbet oturumu icin yeni bir thread. Eski thread'ler okunmuyor,
-// gecmis ekranda gosterilmiyor - sadece limit kontrolu icin DB'de kaliyor.
+// A new thread for each chat session. Old threads are not read,
+// history is not shown on screen - they only remain in DB for limit checks.
 export async function createNewThread(): Promise<ChatThread> {
   const userId = await uid();
 
   const { data, error } = await supabase
     .from('chat_threads')
-    .insert({ user_id: userId, title: 'Sohbet' })
+    .insert({ user_id: userId, title: 'Chat' })
     .select()
     .single();
 
@@ -57,7 +57,7 @@ export async function sendMessageStream(
 ): Promise<SendResult> {
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;
-  if (!accessToken) throw new Error('Oturum bulunamadi.');
+  if (!accessToken) throw new Error('Session not found.');
 
   const url = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/groq-chat`;
 
@@ -70,9 +70,9 @@ export async function sendMessageStream(
         Authorization: `Bearer ${accessToken}`,
         apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
       },
-      // Not icerigi client'tan GONDERILMEZ - sadece id'ler.
-      // Sunucu notlari kullanicinin JWT'siyle ceker, RLS devrede.
-      // Vucut verisi ise sadece SAYI olarak gider; prompt metnini sunucu kurar.
+      // Note contents are NOT sent from the client - only IDs.
+      // Server fetches notes using the user's JWT, RLS is active.
+      // Body data is sent only as values; prompt text is constructed by the server.
       body: JSON.stringify({
         thread_id: threadId,
         message: content,
@@ -82,17 +82,17 @@ export async function sendMessageStream(
     });
   } catch (e) {
     console.log('CHAT NETWORK ERROR:', e);
-    throw new Error('Sunucuya ulasilamadi. Internet baglantini kontrol et.');
+    throw new Error('Could not reach the server. Check your internet connection.');
   }
 
   if (response.status === 429) {
     const errBody = await response.json().catch(() => null);
-    throw new DailyLimitError(errBody?.error ?? 'Gunluk mesaj limitine ulastin.');
+    throw new DailyLimitError(errBody?.error ?? 'You have reached your daily message limit.');
   }
 
   if (!response.ok || !response.body) {
     const errBody = await response.json().catch(() => null);
-    throw new Error(errBody?.error ?? `Mesaj gonderilemedi (kod: ${response.status}).`);
+    throw new Error(errBody?.error ?? `Could not send message (code: ${response.status}).`);
   }
 
   const noteCount = Number(response.headers.get('x-note-count') ?? '0') || 0;

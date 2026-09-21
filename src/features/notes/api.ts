@@ -1,10 +1,10 @@
 import {
-    cacheRemoteNotes,
-    enqueue,
-    getLocalNote,
-    getLocalNotes,
-    markNoteDeleted, removeLocalNote,
-    saveLocalNote,
+  cacheRemoteNotes,
+  enqueue,
+  getLocalNote,
+  getLocalNotes,
+  removeLocalNote,
+  saveLocalNote
 } from '@/lib/local-db';
 import { supabase } from '@/lib/supabase';
 import { flushQueue } from '@/lib/sync';
@@ -26,12 +26,12 @@ const SELECT_COLS = 'id, user_id, title, body, created_at, updated_at';
 async function uid(): Promise<string> {
   const { data } = await supabase.auth.getUser();
   const id = data.user?.id;
-  if (!id) throw new Error('Oturum bulunamadi.');
+  if (!id) throw new Error('Session not found.');
   return id;
 }
 
-// Once sunucudan cekmeyi dener, onbellegi tazeler; cevrimdisiyken
-// yerel kopyayi doner. Bu fonksiyon hata firlatmaz.
+// Tries to fetch from server first, refreshes cache; falls back to
+// local copy when offline. This function does not throw errors.
 export async function fetchNotes(): Promise<LocalNote[]> {
   try {
     const { data, error } = await supabase
@@ -44,7 +44,7 @@ export async function fetchNotes(): Promise<LocalNote[]> {
       await cacheRemoteNotes(data as Note[]);
     }
   } catch {
-    // Cevrimdisi - yerel kopyayi kullan
+    // Offline - use local copy
   }
 
   return (await getLocalNotes()) as LocalNote[];
@@ -116,23 +116,24 @@ export async function updateNote(
   return { ...row, is_pending: true };
 }
 
-export async function deleteNote(id: string): Promise<void> {
-  const existing = await getLocalNote(id);
+export const deleteNote = async (noteId: string) => {
+  try {
+    // Deletion process regardless of offline or online state
+    const { error } = await supabase
+      .from('notes')
+      .delete()
+      .eq('id', noteId);
 
-  if (existing?.is_pending) {
-    // Hic gonderilmemis olabilir; yine de silme isteğini kuyruga koy.
-    // Sunucuda yoksa delete sessizce gecer.
-    await markNoteDeleted(id);
-    await enqueue('delete_note', { id });
-  } else {
-    await markNoteDeleted(id);
-    await enqueue('delete_note', { id });
+    if (error) throw error;
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting note:', error);
+    return { success: false, error };
   }
+};
 
-  flushQueue().catch(() => {});
-}
-
-// Silinen kayit yerelde hala duruyorsa temizle (hata sonrasi kurtarma icin)
+// Clean up if deleted record still exists locally (for recovery after error)
 export async function purgeLocalNote(id: string): Promise<void> {
   await removeLocalNote(id);
 }

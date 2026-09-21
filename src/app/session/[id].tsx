@@ -49,7 +49,7 @@ export default function SessionScreen() {
       setExercises(Object.fromEntries(exData.map((e) => [e.id, e])));
       setDefaultRest(settings.defaultRestSeconds);
     } catch {
-      Alert.alert('Hata', 'Antrenman yuklenemedi.');
+      Alert.alert('Error', 'Could not load workout.');
     } finally {
       setLoading(false);
     }
@@ -78,25 +78,25 @@ export default function SessionScreen() {
     });
     setLogs((prev) => [...prev, created]);
 
-    // Set kaydedildikten sonra dinlenme sayacini otomatik baslat.
+    // Start rest timer automatically after logging a set
     timer.start(suggestRestSeconds(input, defaultRest));
   }
 
   function handleDeleteExercise(exerciseId: string, sets: LocalSetLog[]) {
     Alert.alert(
-      exercises[exerciseId]?.name ?? 'Hareket',
-      `${sets.length} set kaydi silinecek.`,
+      exercises[exerciseId]?.name ?? 'Exercise',
+      `${sets.length} set records will be deleted.`,
       [
-        { text: 'Vazgec', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Sil',
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
               await Promise.all(sets.map((s) => deleteSetLog(s.id)));
               setLogs((prev) => prev.filter((l) => l.exercise_id !== exerciseId));
             } catch {
-              Alert.alert('Hata', 'Silinemedi.');
+              Alert.alert('Error', 'Could not delete.');
             }
           },
         },
@@ -114,7 +114,7 @@ export default function SessionScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: 'Antrenman' }} />
+      <Stack.Screen options={{ headerShown: true, title: 'Workout' }} />
       <SyncBanner />
       <ScrollView
         style={s.container}
@@ -122,7 +122,7 @@ export default function SessionScreen() {
       >
         <Pressable style={s.pickButton} onPress={() => setPickerOpen(true)}>
           <Text style={s.pickButtonText}>
-            {selected ? 'Baska hareket ekle' : 'Hareket sec'}
+            {selected ? 'Add another exercise' : 'Select exercise'}
           </Text>
         </Pressable>
 
@@ -132,7 +132,7 @@ export default function SessionScreen() {
 
         {!timer.running && logs.length > 0 && (
           <View style={s.restRow}>
-            <Text style={s.restLabel}>Dinlenme baslat</Text>
+            <Text style={s.restLabel}>Start rest timer</Text>
             <View style={s.restChips}>
               {REST_PRESETS.map((seconds) => (
                 <Pressable
@@ -147,7 +147,7 @@ export default function SessionScreen() {
           </View>
         )}
 
-        {grouped.length > 0 && <Text style={s.sectionTitle}>Bu antrenman</Text>}
+        {grouped.length > 0 && <Text style={s.sectionTitle}>This workout</Text>}
 
         {grouped.map(([exerciseId, sets]) => {
           const hasPending = sets.some((set) => set.is_pending);
@@ -162,22 +162,22 @@ export default function SessionScreen() {
             >
               <View style={{ flex: 1 }}>
                 <Text style={s.cardName}>
-                  {exercises[exerciseId]?.name ?? 'Bilinmeyen hareket'}
+                  {exercises[exerciseId]?.name ?? 'Unknown exercise'}
                 </Text>
                 <Text style={s.cardSummary}>
                   {summarizeSets(sets)}  ·  {summarizeWeight(sets)}
                 </Text>
-                {hasPending && <Text style={s.pending}>Gonderilmeyi bekliyor</Text>}
+                {hasPending && <Text style={s.pending}>Pending sync</Text>}
               </View>
               <ChevronRight color="#bbb" size={20} />
             </Pressable>
           );
         })}
 
-        {grouped.length === 0 && <Text style={s.empty}>Henuz set eklemedin.</Text>}
+        {grouped.length === 0 && <Text style={s.empty}>No sets added yet.</Text>}
 
         {grouped.length > 0 && (
-          <Text style={s.hint}>Detay icin dokun, silmek icin uzun bas.</Text>
+          <Text style={s.hint}>Tap for details, long press to delete.</Text>
         )}
       </ScrollView>
 

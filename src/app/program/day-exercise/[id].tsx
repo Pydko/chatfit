@@ -1,27 +1,27 @@
 import { fetchExercises } from '@/features/workouts/api';
 import {
-    fetchDayExerciseById,
-    updateDayExerciseNote,
-    updateDayExerciseTargets,
-    type ProgramDayExercise,
+  fetchDayExerciseById,
+  updateDayExerciseNote,
+  updateDayExerciseTargets,
+  type ProgramDayExercise,
 } from '@/features/workouts/programs';
 import { colors } from '@/theme/colors';
 import type { Exercise } from '@/types/workout';
 import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView, Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text, TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView, Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text, TextInput,
+  View,
 } from 'react-native';
 
 function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('tr-TR', {
+  return new Date(iso).toLocaleString('en-US', {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
   });
 }
@@ -48,7 +48,7 @@ export default function DayExerciseScreen() {
       setRepsText(current?.target_reps ? String(current.target_reps) : '');
       setNote(current?.last_note ?? '');
     } catch {
-      Alert.alert('Hata', 'Hareket yuklenemedi.');
+      Alert.alert('Error', 'Could not load exercise.');
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,7 @@ export default function DayExerciseScreen() {
     const reps = repsText.trim() ? parseInt(repsText, 10) : null;
 
     if ((setsText.trim() && Number.isNaN(sets)) || (repsText.trim() && Number.isNaN(reps))) {
-      Alert.alert('Hata', 'Set ve tekrar sayi olmali.');
+      Alert.alert('Error', 'Sets and reps must be numbers.');
       return;
     }
 
@@ -71,7 +71,7 @@ export default function DayExerciseScreen() {
       await updateDayExerciseTargets(item.id, { target_sets: sets, target_reps: reps });
       await load();
     } catch {
-      Alert.alert('Hata', 'Hedef kaydedilemedi.');
+      Alert.alert('Error', 'Could not save target.');
     } finally {
       setSavingTargets(false);
     }
@@ -84,7 +84,7 @@ export default function DayExerciseScreen() {
       await updateDayExerciseNote(item.id, note);
       await load();
     } catch {
-      Alert.alert('Hata', 'Not kaydedilemedi.');
+      Alert.alert('Error', 'Could not save note.');
     } finally {
       setSavingNote(false);
     }
@@ -100,30 +100,30 @@ export default function DayExerciseScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: exercise?.name ?? 'Hareket' }} />
+      <Stack.Screen options={{ headerShown: true, title: exercise?.name ?? 'Exercise' }} />
       <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }} keyboardShouldPersistTaps="handled">
           <View style={s.card}>
-            <Text style={s.cardLabel}>Hedef</Text>
+            <Text style={s.cardLabel}>Target</Text>
             <View style={s.inputRow}>
               <View style={s.inputGroup}>
-                <Text style={s.fieldLabel}>Set</Text>
+                <Text style={s.fieldLabel}>Sets</Text>
                 <TextInput
                   style={s.input}
                   value={setsText}
                   onChangeText={setSetsText}
                   keyboardType="number-pad"
-                  placeholder="orn. 3"
+                  placeholder="e.g. 3"
                 />
               </View>
               <View style={s.inputGroup}>
-                <Text style={s.fieldLabel}>Tekrar</Text>
+                <Text style={s.fieldLabel}>Reps</Text>
                 <TextInput
                   style={s.input}
                   value={repsText}
                   onChangeText={setRepsText}
                   keyboardType="number-pad"
-                  placeholder="orn. 10"
+                  placeholder="e.g. 10"
                 />
               </View>
             </View>
@@ -132,20 +132,20 @@ export default function DayExerciseScreen() {
               onPress={handleSaveTargets}
               disabled={savingTargets}
             >
-              <Text style={s.primaryText}>{savingTargets ? 'Kaydediliyor...' : 'Hedefi kaydet'}</Text>
+              <Text style={s.primaryText}>{savingTargets ? 'Saving...' : 'Save Target'}</Text>
             </Pressable>
           </View>
 
           <View style={s.card}>
             <Text style={s.noteDate}>
-              {item?.last_note_at ? formatDateTime(item.last_note_at) : 'Henuz not yok'}
+              {item?.last_note_at ? formatDateTime(item.last_note_at) : 'No notes yet'}
             </Text>
-            <Text style={s.cardLabel}>Son yapilan</Text>
+            <Text style={s.cardLabel}>Last Performance Note</Text>
             <TextInput
               style={s.noteInput}
               value={note}
               onChangeText={setNote}
-              placeholder="orn. 3 set 60 kg yaptim"
+              placeholder="e.g. Did 3 sets with 60 kg"
               multiline
               numberOfLines={4}
             />
@@ -154,7 +154,7 @@ export default function DayExerciseScreen() {
               onPress={handleSaveNote}
               disabled={savingNote}
             >
-              <Text style={s.secondaryText}>{savingNote ? 'Kaydediliyor...' : 'Notu kaydet'}</Text>
+              <Text style={s.secondaryText}>{savingNote ? 'Saving...' : 'Save Note'}</Text>
             </Pressable>
           </View>
         </ScrollView>

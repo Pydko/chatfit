@@ -1,5 +1,5 @@
-﻿import { supabase } from '@/lib/supabase';
-import { enqueue, savePendingSet, getPendingSets, removePendingSet } from '@/lib/local-db';
+﻿import { enqueue, getPendingSets, removePendingSet, savePendingSet } from '@/lib/local-db';
+import { supabase } from '@/lib/supabase';
 import { flushQueue } from '@/lib/sync';
 import type { Exercise, SetLog, WorkoutSession } from '@/types/workout';
 
@@ -8,7 +8,7 @@ export type LocalSetLog = SetLog & { is_pending?: boolean };
 async function uid(): Promise<string> {
   const { data } = await supabase.auth.getUser();
   const id = data.user?.id;
-  if (!id) throw new Error('Oturum bulunamadi.');
+  if (!id) throw new Error('Session not found.');
   return id;
 }
 
@@ -28,22 +28,6 @@ export async function fetchExerciseById(id: string): Promise<Exercise | null> {
     .select('id, owner_id, name, primary_muscle, equipment, is_unilateral')
     .eq('id', id)
     .maybeSingle();
-
-  if (error) throw error;
-  return data;
-}
-
-export async function createExercise(input: {
-  name: string;
-  primary_muscle: string;
-  equipment?: string | null;
-}): Promise<Exercise> {
-  const userId = await uid();
-  const { data, error } = await supabase
-    .from('exercises')
-    .insert({ ...input, owner_id: userId })
-    .select()
-    .single();
 
   if (error) throw error;
   return data;
@@ -72,8 +56,8 @@ export async function fetchSessions(limit = 30): Promise<WorkoutSession[]> {
   return data ?? [];
 }
 
-// Sunucudaki setler + henuz gonderilmemis yerel setler.
-// Bu fonksiyon asla hata firlatmaz - cevrimdisiyken yerel kayitlari doner.
+// Sets on the server + local sets not yet sent.
+// This function never throws errors - returns local records when offline.
 export async function fetchSetLogs(sessionId: string): Promise<LocalSetLog[]> {
   let pending: LocalSetLog[] = [];
   try {
@@ -91,7 +75,7 @@ export async function fetchSetLogs(sessionId: string): Promise<LocalSetLog[]> {
       .order('performed_at');
     if (!error) remote = data ?? [];
   } catch {
-    // Cevrimdisi - sadece yerel kayitlar gosterilir
+    // Offline - only local records are shown
   }
 
   return [...remote, ...pending].sort(
@@ -99,7 +83,7 @@ export async function fetchSetLogs(sessionId: string): Promise<LocalSetLog[]> {
   );
 }
 
-// Once yerele yaz, sonra gondermeyi dene. Cevrimdisiyken de calisir.
+// Write to local first, then attempt to send. Works while offline too.
 export async function addSetLog(input: {
   session_id: string;
   exercise_id: string;

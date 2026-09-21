@@ -16,7 +16,7 @@ function makeMetric(date: string, weight: number | null, bodyFat: number | null 
   };
 }
 
-// TODAY'den geriye dogru gunluk seri
+// Daily series counting backwards from TODAY
 function makeDailySeries(startWeight: number, perDay: number, days: number): BodyMetric[] {
   const end = Date.UTC(2026, 8, 11);
   return Array.from({ length: days }, (_, i) => {
@@ -27,16 +27,16 @@ function makeDailySeries(startWeight: number, perDay: number, days: number): Bod
 }
 
 describe('buildBodySummary', () => {
-  it('olcum yoksa null', () => {
+  it('returns null if there are no measurements', () => {
     expect(buildBodySummary([], 180, TODAY)).toBeNull();
     expect(buildBodySummary([makeMetric('2026-09-10', null, 20)], 180, TODAY)).toBeNull();
   });
 
-  it('cok eski olcumu baglama almaz', () => {
+  it('does not include too old measurements in context', () => {
     expect(buildBodySummary([makeMetric('2026-01-01', 80)], 180, TODAY)).toBeNull();
   });
 
-  it('tek olcumde temel alanlari doldurur', () => {
+  it('populates core fields on a single measurement', () => {
     const summary = buildBodySummary([makeMetric('2026-09-09', 80)], 180, TODAY);
     expect(summary).toMatchObject({
       weightKg: 80,
@@ -47,27 +47,27 @@ describe('buildBodySummary', () => {
     });
   });
 
-  it('yetersiz veride haftalik hiz alanlari bos kalir', () => {
+  it('leaves weekly rate fields empty on insufficient data', () => {
     const summary = buildBodySummary([makeMetric('2026-09-10', 80)], 180, TODAY);
     expect(summary?.kgPerWeek).toBeUndefined();
     expect(summary?.rateConfidence).toBeUndefined();
   });
 
-  it('yeterli veride haftalik hizi ekler', () => {
+  it('adds weekly rate on sufficient data', () => {
     const summary = buildBodySummary(makeDailySeries(80, 0.1, 15), 180, TODAY);
     expect(summary?.kgPerWeek).toBeCloseTo(0.7, 2);
     expect(summary?.rateConfidence).toBe('medium');
     expect(summary?.rateEntries).toBe(15);
   });
 
-  it('boy yoksa BMI ve FFMI hesaplanmaz', () => {
+  it('does not calculate BMI and FFMI if height is missing', () => {
     const summary = buildBodySummary([makeMetric('2026-09-10', 80, 20)], null, TODAY);
     expect(summary?.bmi).toBeUndefined();
     expect(summary?.ffmi).toBeUndefined();
     expect(summary?.leanMassKg).toBe(64);
   });
 
-  it('yag orani varsa kompozisyon ve FFMI ekler', () => {
+  it('adds composition and FFMI if body fat percentage is present', () => {
     const summary = buildBodySummary([makeMetric('2026-09-10', 80, 20)], 180, TODAY);
     expect(summary?.bodyFatPct).toBe(20);
     expect(summary?.bodyFatDaysAgo).toBe(1);
@@ -75,7 +75,7 @@ describe('buildBodySummary', () => {
     expect(summary?.ffmi).toBe(19.8);
   });
 
-  it('kompozisyon icin en son yag olcumunu kullanir', () => {
+  it('uses the latest body fat measurement for composition', () => {
     const summary = buildBodySummary(
       [makeMetric('2026-09-01', 82, 22), makeMetric('2026-09-09', 80, 18), makeMetric('2026-09-10', 80)],
       180,
@@ -85,7 +85,7 @@ describe('buildBodySummary', () => {
     expect(summary?.bodyFatDaysAgo).toBe(2);
   });
 
-  it('eski yag olcumunu almaz ama kiloyu dondurur', () => {
+  it('ignores old body fat measurements but returns the weight', () => {
     const summary = buildBodySummary(
       [makeMetric('2026-01-01', 82, 22), makeMetric('2026-09-10', 80)],
       180,

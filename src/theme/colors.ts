@@ -1,22 +1,22 @@
 export const colors = {
-  // Turkuaz - marka rengi
+  // Turquoise - brand color
   primary: '#14B8A6',
   primaryDark: '#0F766E',
   primarySoft: '#99F6E4',
 
-  // Acik gri - arka planlar
+  // Light gray - backgrounds
   background: '#F3F4F6',
   surface: '#FFFFFF',
   surfaceMuted: '#E5E7EB',
   border: '#D1D5DB',
 
-  // Metin
+  // Text
   textPrimary: '#111827',
   textSecondary: '#6B7280',
   textMuted: '#9CA3AF',
   textOnPrimary: '#FFFFFF',
 
-  // Durumlar
+  // Statuses
   danger: '#DC2626',
   success: '#16A34A',
   warning: '#D97706',

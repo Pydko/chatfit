@@ -31,7 +31,7 @@ function makeSet(
 }
 
 describe('buildTrend', () => {
-  it("seansa göre gruplayıp her seansın özetini çıkarır", () => {
+  it("groups by session and summarizes each session", () => {
     const sets = [
       makeSet(80, 5, 'sess1', 0),
       makeSet(80, 5, 'sess1', 0),
@@ -40,14 +40,13 @@ describe('buildTrend', () => {
     const points = buildTrend(sets);
 
     expect(points.length).toBe(2);
-    // 'toBeLessThanOrEqual' yerine tam ağırlık beklentisi (toBe) kullanmak daha sağlıklıdır.
     expect(points[0].topWeight).toBe(70); 
     expect(points[1].topWeight).toBe(80);
   });
 
-  it("ısınma setlerini dışarıda bırakır", () => {
+  it("excludes warmup sets", () => {
     const sets = [
-      makeSet(20, 10, 'sess1', 0, true), // ısınma seti
+      makeSet(20, 10, 'sess1', 0, true), // warmup set
       makeSet(80, 5, 'sess1', 0),
     ];
     const points = buildTrend(sets);
@@ -56,23 +55,23 @@ describe('buildTrend', () => {
     expect(points[0].topWeight).toBe(80);
   });
 
-  it("tarih sırasına göre sıralar", () => {
+  it("sorts by date order", () => {
     const sets = [
-      makeSet(80, 5, 'sess1', 0),  // En yeni
-      makeSet(70, 8, 'sess2', 14), // En eski
-      makeSet(75, 6, 'sess3', 7),  // Ortanca
+      makeSet(80, 5, 'sess1', 0),  // Newest
+      makeSet(70, 8, 'sess2', 14), // Oldest
+      makeSet(75, 6, 'sess3', 7),  // Middle
     ];
     const points = buildTrend(sets);
 
     expect(points.length).toBe(3);
-    expect(points[0].topWeight).toBe(70); // 14 gün önceki
-    expect(points[1].topWeight).toBe(75); // 7 gün önceki (eksikti eklendi)
-    expect(points[2].topWeight).toBe(80); // Bugünkü
+    expect(points[0].topWeight).toBe(70); // 14 days ago
+    expect(points[1].topWeight).toBe(75); // 7 days ago
+    expect(points[2].topWeight).toBe(80); // Today
   });
 });
 
 describe('analyzeTrend', () => {
-  it("3 antrenman altında insufficient döner", () => {
+  it("returns insufficient for under 3 workouts", () => {
     const sets = [makeSet(80, 5, 'sess1', 0)];
     const trend = analyzeTrend(sets);
 
@@ -80,7 +79,7 @@ describe('analyzeTrend', () => {
     expect(trend.summary).toContain('3');
   });
 
-  it("yukarıya doğru trend tespit eder", () => {
+  it("detects an upward trend", () => {
     const sets = [
       makeSet(80, 5, 'sess1', 28),
       makeSet(85, 5, 'sess2', 21),
@@ -91,10 +90,10 @@ describe('analyzeTrend', () => {
 
     expect(trend.direction).toBe('up');
     expect(trend.changePercent).toBeGreaterThan(0);
-    expect(trend.summary).toContain('artmis');
+    expect(trend.summary).toContain('increased');
   });
 
-  it("aşağıya doğru trend tespit eder", () => {
+  it("detects a downward trend", () => {
     const sets = [
       makeSet(100, 5, 'sess1', 28),
       makeSet(95, 5, 'sess2', 21),
@@ -105,10 +104,10 @@ describe('analyzeTrend', () => {
 
     expect(trend.direction).toBe('down');
     expect(trend.changePercent).toBeLessThan(0);
-    expect(trend.summary).toContain('dusmus');
+    expect(trend.summary).toContain('decreased');
   });
 
-  it("flat trend (%2 toleransı)", () => {
+  it("flat trend (2% tolerance)", () => {
     const sets = [
       makeSet(90, 5, 'sess1', 14),
       makeSet(90.5, 5, 'sess2', 7),
@@ -119,7 +118,7 @@ describe('analyzeTrend', () => {
     expect(trend.direction).toBe('flat');
   });
 
-  it("son 6 seansa bakar (varsayılan pencere)", () => {
+  it("looks at the last 6 sessions (default window)", () => {
     const sets = [
       makeSet(70, 5, 'sess1', 49),
       makeSet(75, 5, 'sess2', 42),
@@ -127,17 +126,16 @@ describe('analyzeTrend', () => {
       makeSet(85, 5, 'sess4', 28),
       makeSet(90, 5, 'sess5', 21),
       makeSet(95, 5, 'sess6', 14),
-      makeSet(100, 5, 'sess7', 7), // Toplam 7 antrenman
+      makeSet(100, 5, 'sess7', 7), // Total 7 workouts
     ];
 
     const trend = analyzeTrend(sets);
-    // En fazla 6 veri noktası alındığından emin oluyoruz
     expect(trend.points.length).toBeLessThanOrEqual(6); 
   });
 });
 
 describe('estimateWeeksToTarget', () => {
-  it("4 antrenman altında tahmin yapamaz", () => {
+  it("cannot estimate under 4 workouts", () => {
     const sets = [
       makeSet(80, 5, 'sess1', 14),
       makeSet(85, 5, 'sess2', 7),
@@ -149,19 +147,19 @@ describe('estimateWeeksToTarget', () => {
     expect(result.note).toContain('4');
   });
 
-  it("hedef zaten ulaşılmışsa weeks = 0 döner", () => {
+  it("returns weeks = 0 if target is already reached", () => {
     const sets = [
       makeSet(80, 5, 'sess1', 28),
       makeSet(85, 5, 'sess2', 21),
       makeSet(90, 5, 'sess3', 14),
       makeSet(110, 5, 'sess4', 7),
     ];
-    const result = estimateWeeksToTarget(sets, 100); // Hedef 100, ulaşılan 110
+    const result = estimateWeeksToTarget(sets, 100); // Target 100, reached 110
 
     expect(result.weeks).toBe(0);
   });
 
-  it("ilerleme hızını temel alarak hafta tahmini yapar", () => {
+  it("estimates weeks based on progression rate", () => {
     const sets = [
       makeSet(80, 5, 'sess1', 28),
       makeSet(85, 5, 'sess2', 21),
@@ -174,20 +172,20 @@ describe('estimateWeeksToTarget', () => {
     expect(result.weeks).toBeGreaterThanOrEqual(3);
   });
 
-  it("geri ilerleme varsa null döner", () => {
+  it("returns null if there is regressing progress", () => {
     const sets = [
       makeSet(100, 5, 'sess1', 21),
       makeSet(95, 5, 'sess2', 14),
       makeSet(90, 5, 'sess3', 7),
-      makeSet(80, 5, 'sess4', 0), // Ağırlık sürekli düşmüş
+      makeSet(80, 5, 'sess4', 0), // Weight consistently dropping
     ];
     const result = estimateWeeksToTarget(sets, 150);
 
     expect(result.weeks).toBeNull();
-    expect(result.note).toContain('hizi hesaplanamiyor');
+    expect(result.note).toContain('rate cannot be calculated');
   });
 
-  it("1 haftadan kısa veri için tahmin yapamaz", () => {
+  it("cannot estimate for data spanning less than 1 week", () => {
     const sets = [
       makeSet(80, 5, 'sess1', 0),
       makeSet(85, 5, 'sess2', 0),

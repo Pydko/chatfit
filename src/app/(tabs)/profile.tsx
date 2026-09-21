@@ -37,7 +37,7 @@ export default function ProfileTab() {
       setUnitSystem(settings.unitSystem);
       setRestSeconds(settings.defaultRestSeconds);
     } catch {
-      // cevrimdisi olabilir, varsayilanlarla devam
+      // Offline olabilir, varsayılanlarla devam
     } finally {
       setLoading(false);
     }
@@ -53,7 +53,7 @@ export default function ProfileTab() {
       await saveSettings({ display_name: trimmed });
       setEditingName(false);
     } catch {
-      Alert.alert('Hata', 'Ad kaydedilemedi.');
+      Alert.alert('Error', 'Could not save name.');
     }
   }
 
@@ -64,7 +64,7 @@ export default function ProfileTab() {
       await saveSettings({ unit_system: unit });
     } catch {
       setUnitSystem(previous);
-      Alert.alert('Hata', 'Birim degistirilemedi.');
+      Alert.alert('Error', 'Could not change unit.');
     }
   }
 
@@ -75,7 +75,7 @@ export default function ProfileTab() {
       await saveSettings({ default_rest_seconds: seconds });
     } catch {
       setRestSeconds(previous);
-      Alert.alert('Hata', 'Dinlenme suresi kaydedilemedi.');
+      Alert.alert('Error', 'Could not save rest duration.');
     }
   }
 
@@ -84,20 +84,20 @@ export default function ProfileTab() {
       setExporting(true);
 
       const json = await exportAllData();
-      const file = new File(Paths.cache, 'chatfit-verilerim.json');
+      const file = new File(Paths.cache, 'chatfit-my-data.json');
       file.create({ overwrite: true });
       file.write(json);
 
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(file.uri, {
           mimeType: 'application/json',
-          dialogTitle: 'ChatFit verilerini disa aktar',
+          dialogTitle: 'Export ChatFit data',
         });
       } else {
-        Alert.alert('Hazir', `Dosya olusturuldu: ${file.uri}`);
+        Alert.alert('Ready', `File created: ${file.uri}`);
       }
     } catch {
-      Alert.alert('Hata', 'Veriler disa aktarilamadi.');
+      Alert.alert('Error', 'Could not export data.');
     } finally {
       setExporting(false);
     }
@@ -105,17 +105,17 @@ export default function ProfileTab() {
 
   function handleDeleteAccount() {
     Alert.alert(
-      'Hesabini sil',
-      'Tum antrenman kayitlarin, notlarin ve sohbet gecmisin kalici olarak silinecek. Bu islem geri alinamaz.',
+      'Delete Account',
+      'All your workout records, notes, and chat history will be permanently deleted. This action cannot be undone.',
       [
-        { text: 'Vazgec', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Hesabi sil',
+          text: 'Delete Account',
           style: 'destructive',
           onPress: async () => {
             const { error } = await supabase.rpc('delete_own_account');
             if (error) {
-              Alert.alert('Hata', 'Hesap silinemedi. Lutfen tekrar dene.');
+              Alert.alert('Error', 'Could not delete account. Please try again.');
               return;
             }
             await supabase.auth.signOut();
@@ -131,7 +131,7 @@ export default function ProfileTab() {
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, gap: 24, paddingBottom: 48 }}>
-      {/* ============ HESAP ============ */}
+      {/* ============ ACCOUNT ============ */}
       <View style={s.card}>
         {editingName ? (
           <>
@@ -139,26 +139,26 @@ export default function ProfileTab() {
               style={s.input}
               value={displayName}
               onChangeText={setDisplayName}
-              placeholder="Adin"
+              placeholder="Your name"
               autoFocus
               maxLength={50}
             />
             <Pressable style={s.primary} onPress={handleSaveName}>
-              <Text style={s.primaryText}>Kaydet</Text>
+              <Text style={s.primaryText}>Save</Text>
             </Pressable>
           </>
         ) : (
           <Pressable onPress={() => setEditingName(true)}>
-            <Text style={s.name}>{displayName || 'Adin yok'}</Text>
+            <Text style={s.name}>{displayName || 'No name set'}</Text>
             <Text style={s.email}>{session?.user.email}</Text>
-            <Text style={s.hint}>Adi degistirmek icin dokun</Text>
+            <Text style={s.hint}>Tap to change name</Text>
           </Pressable>
         )}
       </View>
 
-      {/* ============ BIRIM ============ */}
+      {/* ============ UNITS ============ */}
       <View style={s.section}>
-        <Text style={s.sectionTitle}>Birim sistemi</Text>
+        <Text style={s.sectionTitle}>Unit system</Text>
         <View style={s.chipRow}>
           {(['metric', 'imperial'] as const).map((unit) => (
             <Pressable
@@ -174,9 +174,9 @@ export default function ProfileTab() {
         </View>
       </View>
 
-      {/* ============ DINLENME ============ */}
+      {/* ============ REST TIMER ============ */}
       <View style={s.section}>
-        <Text style={s.sectionTitle}>Varsayilan dinlenme suresi</Text>
+        <Text style={s.sectionTitle}>Default rest duration</Text>
         <View style={s.chipRow}>
           {REST_PRESETS.map((seconds) => (
             <Pressable
@@ -192,29 +192,29 @@ export default function ProfileTab() {
         </View>
       </View>
 
-      {/* ============ BAGLANTILAR ============ */}
+      {/* ============ LINKS ============ */}
       <View style={s.section}>
         <Pressable style={s.row} onPress={() => router.push('/body')}>
-          <Text style={s.rowText}>Vucut takibi</Text>
+          <Text style={s.rowText}>Body tracking</Text>
           <ChevronRight color="#bbb" size={20} />
         </Pressable>
 
         <Pressable style={s.row} onPress={handleExport} disabled={exporting}>
           <Text style={s.rowText}>
-            {exporting ? 'Hazirlaniyor...' : 'Verilerimi disa aktar'}
+            {exporting ? 'Preparing...' : 'Export my data'}
           </Text>
           <Download color="#bbb" size={20} />
         </Pressable>
       </View>
 
-      {/* ============ HESAP ISLEMLERI ============ */}
+      {/* ============ ACCOUNT ACTIONS ============ */}
       <View style={s.section}>
         <Pressable style={s.signOut} onPress={() => supabase.auth.signOut()}>
-          <Text style={s.signOutText}>Cikis yap</Text>
+          <Text style={s.signOutText}>Sign out</Text>
         </Pressable>
 
         <Pressable onPress={handleDeleteAccount} style={{ marginTop: 16 }}>
-          <Text style={s.danger}>Hesabimi sil</Text>
+          <Text style={s.danger}>Delete my account</Text>
         </Pressable>
       </View>
     </ScrollView>

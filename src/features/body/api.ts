@@ -7,11 +7,11 @@ const SELECT_COLS = 'id, user_id, measured_on, weight_kg, body_fat_pct, created_
 async function uid(): Promise<string> {
   const { data } = await supabase.auth.getUser();
   const id = data.user?.id;
-  if (!id) throw new Error('Oturum bulunamadi.');
+  if (!id) throw new Error('Session not found.');
   return id;
 }
 
-// numeric kolonlar string olarak gelebilir; hesaplamalara girmeden sayiya cevir
+// Numeric columns might come as strings; convert to number before calculations
 function toNumberOrNull(value: unknown): number | null {
   if (value === null || value === undefined) return null;
   const n = typeof value === 'number' ? value : Number(value);
@@ -29,7 +29,7 @@ function normalize(row: any): BodyMetric {
   };
 }
 
-// Tarihe gore eskiden yeniye. Trend hesaplari bu sirayi bekliyor.
+// Oldest to newest by date. Trend calculations expect this order.
 export async function fetchBodyMetrics(days = 180): Promise<BodyMetric[]> {
   const since = new Date();
   since.setDate(since.getDate() - days);
@@ -45,9 +45,9 @@ export async function fetchBodyMetrics(days = 180): Promise<BodyMetric[]> {
   return (data ?? []).map(normalize);
 }
 
-// Ayni gune ikinci kayit yeni satir acmaz, o gunun olcumunu gunceller
-// (unique user_id + measured_on). Bos birakilan alan null olarak yazilir,
-// bu yuzden ekran o gunun mevcut degerlerini forma doldurmali.
+// A second entry on the same day updates that day's measurement instead of creating a new row
+// (unique user_id + measured_on). Blank fields are written as null,
+// so the screen must pre-fill the form with that day's existing values.
 export async function saveBodyMetric(input: BodyMetricInput): Promise<BodyMetric> {
   const userId = await uid();
 

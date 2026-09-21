@@ -1,9 +1,14 @@
-﻿import { useEffect, useMemo, useState } from 'react';
-import {
-  View, Text, TextInput, Pressable, FlatList, Modal, StyleSheet, ActivityIndicator,
-} from 'react-native';
-import { fetchExercises } from '@/features/workouts/api';
+﻿import { fetchExercises } from '@/features/workouts/api';
 import { MUSCLE_LABELS, type Exercise } from '@/types/workout';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList, Modal,
+  Pressable,
+  StyleSheet,
+  Text, TextInput,
+  View,
+} from 'react-native';
 
 type Props = {
   visible: boolean;
@@ -39,15 +44,15 @@ export function ExercisePicker({ visible, onClose, onSelect }: Props) {
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={s.container}>
         <View style={s.header}>
-          <Text style={s.title}>Hareket sec</Text>
+          <Text style={s.title}>Select exercise</Text>
           <Pressable onPress={onClose} hitSlop={12}>
-            <Text style={s.close}>Kapat</Text>
+            <Text style={s.close}>Close</Text>
           </Pressable>
         </View>
 
         <TextInput
           style={s.search}
-          placeholder="Hareket ara..."
+          placeholder="Search exercises..."
           value={query}
           onChangeText={setQuery}
           autoCapitalize="none"
@@ -73,7 +78,7 @@ export function ExercisePicker({ visible, onClose, onSelect }: Props) {
                 <Text style={s.rowMeta}>{MUSCLE_LABELS[item.primary_muscle]}</Text>
               </Pressable>
             )}
-            ListEmptyComponent={<Text style={s.empty}>Sonuc bulunamadi.</Text>}
+            ListEmptyComponent={<Text style={s.empty}>No results found.</Text>}
           />
         )}
       </View>

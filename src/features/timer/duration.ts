@@ -1,4 +1,4 @@
-// Saf zaman hesaplari. Hicbir yan etkisi yok, tamamen test edilebilir.
+// Pure time calculations. No side effects, fully testable.
 
 export const REST_PRESETS = [60, 90, 120, 180] as const;
 
@@ -13,20 +13,20 @@ export function formatDuration(seconds: number): string {
   return `${minutes}:${String(rest).padStart(2, '0')}`;
 }
 
-/** Bitis anina kalan saniye. Negatif olmaz. */
+/** Remaining seconds until end time. Cannot be negative. */
 export function remainingSeconds(endsAtMs: number, nowMs: number): number {
   return Math.max(0, Math.ceil((endsAtMs - nowMs) / 1000));
 }
 
-/** Sinirlar icine cek. */
+/** Clamp within boundaries. */
 export function clampRest(seconds: number): number {
   if (!Number.isFinite(seconds)) return MIN_REST_SECONDS;
   return Math.min(MAX_REST_SECONDS, Math.max(MIN_REST_SECONDS, Math.round(seconds)));
 }
 
 /**
- * Sete gore dinlenme suresi. Kullanicinin varsayilani temel alinir,
- * set tipine gore olceklenir. Agir/dusuk tekrarli setler daha uzun dinlenme ister.
+ * Rest duration based on the set. Based on user's default,
+ * scaled according to set type. Heavy/low rep sets require longer rest.
  */
 export function suggestRestSeconds(
   set: { reps: number; is_warmup: boolean },
@@ -41,7 +41,7 @@ export function suggestRestSeconds(
   return clampRest(base * 0.7);
 }
 
-/** Ilerleme orani 0..1 (dolan kisim). */
+/** Progress ratio 0..1 (elapsed portion). */
 export function restProgress(totalSeconds: number, remaining: number): number {
   if (totalSeconds <= 0) return 1;
   const done = (totalSeconds - remaining) / totalSeconds;

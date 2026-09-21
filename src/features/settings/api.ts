@@ -16,11 +16,11 @@ const DEFAULTS: UserSettings = {
 async function uid(): Promise<string> {
   const { data } = await supabase.auth.getUser();
   const id = data.user?.id;
-  if (!id) throw new Error('Oturum bulunamadi.');
+  if (!id) throw new Error('Session not found.');
   return id;
 }
 
-/** Cevrimdisiyken ya da satir yoksa guvenli varsayilanlarla doner. */
+/** Returns with safe defaults when offline or if no row exists. */
 export async function fetchSettings(): Promise<UserSettings> {
   try {
     const userId = await uid();
@@ -43,7 +43,7 @@ export async function fetchSettings(): Promise<UserSettings> {
   }
 }
 
-/** Kismi guncelleme: yalnizca verilen alanlar yazilir. */
+/** Partial update: only the provided fields are written. */
 export async function saveSettings(patch: {
   display_name?: string;
   unit_system?: UnitSystem;
@@ -55,7 +55,7 @@ export async function saveSettings(patch: {
   if (error) throw error;
 }
 
-/** Tum kullanici verisini tek bir JSON metnine topla. RLS sayesinde yalnizca kendi satirlari doner. */
+/** Gather all user data into a single JSON string. Only own rows return thanks to RLS. */
 export async function exportAllData(): Promise<string> {
   const [
     profile,

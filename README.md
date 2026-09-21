@@ -1,56 +1,45 @@
-# Welcome to your Expo app 👋
+# 🤖 ChatFit - AI-Powered Offline Fitness Assistant
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+![License](https://img.shields.io/badge/License-MIT-blue.svg)
+![Expo](https://img.shields.io/badge/Expo-SDK-black)
+![React Native](https://img.shields.io/badge/React%20Native-Cross%2CPlatform-blue)
+![Supabase](https://img.shields.io/badge/Supabase-Backend%20%26%20Sync-green)
+![Groq API](https://img.shields.io/badge/Groq%20API-AI%20Models-orange)
 
-## Get started
+**ChatFit** is a modern, AI-powered fitness application designed to work completely offline with robust local-first synchronization. Track your workout routines, monitor body metrics, and get instant coaching advice seamlessly anywhere.
 
-1. Install dependencies
+---
 
+## ✨ Features
+
+* **🤖 AI Workout Assistant:** Powered by high-speed Groq API models to provide personalized fitness and nutrition guidance.
+* **📶 Offline-First & Sync:** Local SQLite database ensures full functionality offline, seamlessly syncing with Supabase when reconnected.
+* **📊 Statistics & Progress Tracking:** Detailed analytics, 1RM estimations, volume tracking, and trend analysis.
+* **⏱️ Custom Rest Timer:** Fully customizable rest timer presets for optimized workout sessions.
+* **🎥 Form Videos:** Integrated YouTube video search with language selection (TR/EN) to check proper exercise execution technique.
+
+---
+
+## 🛠️ Tech Stack
+
+* **Frontend:** [Expo](https://expo.dev/) & React Native (Expo Router)
+* **Backend & Database:** [Supabase](https://supabase.com/) (PostgreSQL, Auth, Edge Functions, RLS)
+* **AI Engine:** [Groq API](https://groq.com/) (Lightning-fast LLM integration)
+* **Local Storage:** SQLite (Local-first architecture & sync queue)
+
+---
+
+## 📸 Video
+
+[![Watch the video](https://img.youtube.com/vi/3yPU-eN3CR0/maxresdefault.jpg)](https://youtube.com/shorts/_9xXRh_BwGI?feature=share)
+
+### [Watch this video on YouTube](https://youtube.com/shorts/_9xXRh_BwGI?feature=share)
+
+---
+
+## ⚙️ Installation & Setup
+
+1. Clone the repository to your local machine.
+2. Install the required dependencies:
    ```bash
    npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
