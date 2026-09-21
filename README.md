@@ -31,8 +31,6 @@
 
 ## 📸 Video
 
-[![Watch the video](https://img.youtube.com/vi/3yPU-eN3CR0/maxresdefault.jpg)](https://youtube.com/shorts/_9xXRh_BwGI?feature=share)
-
 ### [Watch this video on YouTube](https://youtube.com/shorts/_9xXRh_BwGI?feature=share)
 
 ---
