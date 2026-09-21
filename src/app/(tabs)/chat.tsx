@@ -58,7 +58,7 @@ export default function ChatTab() {
         activeThread = await createNewThread();
         setThread(activeThread);
       } catch {
-        setError('Sohbet baslatilamadi. Tekrar dene.');
+        setError('Could not start chat. Please try again.');
         setSending(false);
         return;
       }
@@ -75,7 +75,7 @@ export default function ChatTab() {
       role: 'user',
       content: parsed.data.content,
       created_at: new Date().toISOString(),
-      noteLabels: sentNotes.map((n) => n.title || 'Basliksiz not'),
+      noteLabels: sentNotes.map((n) => n.title || 'Untitled note'),
       withBody,
     };
 
@@ -108,9 +108,6 @@ export default function ChatTab() {
       );
     };
 
-    // Vucut verisi yalnizca kullanici acikca istediginde gonderilir.
-    // Hesaplar burada degil, test edilmis calculations.ts'te yapilir;
-    // sunucuya sadece sayilar gider.
     let bodySummary: BodySummary | null = null;
     if (withBody) {
       try {
@@ -138,22 +135,20 @@ export default function ChatTab() {
         prev.map((m) => (m.id === assistantId ? { ...m, pending: false } : m)),
       );
 
-      // Baglam eksik kaldiysa sessiz kalmayalim: kullanici notunun veya
-      // olcumlerinin okundugunu sanip yanlis cevaba guvenmesin.
       if (noteIds.length > 0 && result.noteCount < noteIds.length) {
         setInfo(
           result.noteCount === 0
-            ? 'Notlarin henuz sunucuya gonderilmemis, bu mesajda okunamadi.'
-            : `${noteIds.length} nottan ${result.noteCount} tanesi okunabildi.`,
+            ? 'Your notes have not been synced to the server yet and could not be read in this message.'
+            : `${result.noteCount} of ${noteIds.length} notes could be read.`,
         );
       } else if (withBody && !result.bodyContext) {
-        setInfo('Vucut olcumu bulunamadi. Profil > Vucut takibi ekranindan olcum ekleyebilirsin.');
+        setInfo('No body metrics found. You can add measurements from Profile > Body Tracking.');
       } else if (result.noteTruncated) {
-        setInfo('Notlarin uzun oldugu icin bir kismi kirpildi.');
+        setInfo('Some of your notes were truncated because they were too long.');
       }
     } catch (e) {
       if (flushTimer) clearTimeout(flushTimer);
-      setError(e instanceof Error ? e.message : 'Mesaj gonderilemedi. Tekrar dene.');
+      setError(e instanceof Error ? e.message : 'Failed to send message. Please try again.');
       setMessages((prev) => prev.filter((m) => m.id !== assistantId));
     } finally {
       setSending(false);
@@ -172,17 +167,17 @@ export default function ChatTab() {
         contentContainerStyle={{ padding: 16, gap: 10 }}
         ListEmptyComponent={
           <Text style={s.empty}>
-            Antrenman kocuna merhaba de. Notlarindan birini veya vucut olcumlerini ekleyerek de sorabilirsin.
+            Say hello to your workout coach. You can also ask questions by attaching one of your notes or body metrics.
           </Text>
         }
         renderItem={({ item }) => (
           <View style={item.role === 'user' ? s.alignEnd : s.alignStart}>
             {item.noteLabels && item.noteLabels.length > 0 && (
               <Text style={s.attachedNote}>
-                {item.noteLabels.length} not eklendi: {item.noteLabels.join(', ')}
+                {item.noteLabels.length} note(s) attached: {item.noteLabels.join(', ')}
               </Text>
             )}
-            {item.withBody && <Text style={s.attachedNote}>Vucut olcumleri eklendi</Text>}
+            {item.withBody && <Text style={s.attachedNote}>Body metrics attached</Text>}
             <View style={[s.bubble, item.role === 'user' ? s.bubbleUser : s.bubbleAssistant]}>
               <Text style={item.role === 'user' ? s.bubbleTextUser : s.bubbleTextAssistant}>
                 {item.content || (item.pending ? '...' : '')}
@@ -201,7 +196,7 @@ export default function ChatTab() {
         >
           {attached.map((n) => (
             <View key={n.id} style={s.chip}>
-              <Text style={s.chipText} numberOfLines={1}>{n.title || 'Basliksiz not'}</Text>
+              <Text style={s.chipText} numberOfLines={1}>{n.title || 'Untitled note'}</Text>
               <Pressable onPress={() => removeAttached(n.id)} hitSlop={8}>
                 <X color="#555" size={14} />
               </Pressable>
@@ -236,7 +231,7 @@ export default function ChatTab() {
           style={s.input}
           value={input}
           onChangeText={setInput}
-          placeholder="Bir sey yaz..."
+          placeholder="Type something..."
           multiline
           editable={!sending}
         />

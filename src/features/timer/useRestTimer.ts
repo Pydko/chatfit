@@ -18,7 +18,7 @@ export function useRestTimer(): RestTimer {
   const [remaining, setRemaining] = useState(0);
   const notifId = useRef<string | null>(null);
 
-  // Saniye degismedikce render tetiklenmez: setRemaining ayni degeri alirsa React atlar.
+  // Render is not triggered unless seconds change: React skips if setRemaining receives the same value.
   useEffect(() => {
     if (endsAt === null) return;
 
@@ -29,7 +29,7 @@ export function useRestTimer(): RestTimer {
     return () => clearInterval(interval);
   }, [endsAt]);
 
-  // Sure dolunca temizle ve titret.
+  // Clean up and trigger haptics when time is up.
   useEffect(() => {
     if (endsAt === null || remaining > 0) return;
 
@@ -39,7 +39,7 @@ export function useRestTimer(): RestTimer {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
   }, [endsAt, remaining]);
 
-  // Bildirimi tek bir yerden planla; yan etkiler state guncelleyicisinin disinda.
+  // Schedule notification from a single place; side effects are kept outside of state updater.
   const reschedule = useCallback((seconds: number) => {
     const previous = notifId.current;
     notifId.current = null;

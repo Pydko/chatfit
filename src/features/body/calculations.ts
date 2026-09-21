@@ -5,10 +5,10 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 function round(value: number, digits = 1): number {
   const factor = 10 ** digits;
   const result = Math.round(value * factor) / factor;
-  return result === 0 ? 0 : result; // -0 donmesin
+  return result === 0 ? 0 : result; // Prevent -0
 }
 
-// 'YYYY-MM-DD' -> UTC gun numarasi. Saat dilimi kaymasi olmasin diye UTC.
+// 'YYYY-MM-DD' -> UTC day number. Using UTC to prevent timezone shifts.
 export function dayNumber(isoDate: string): number {
   const [y, m, d] = isoDate.split('-').map(Number);
   return Math.floor(Date.UTC(y, m - 1, d) / MS_PER_DAY);
@@ -19,10 +19,10 @@ export function dayNumber(isoDate: string): number {
 export type BmiCategory = 'underweight' | 'normal' | 'overweight' | 'obese';
 
 export const BMI_LABELS: Record<BmiCategory, string> = {
-  underweight: 'Zayıf',
+  underweight: 'Underweight',
   normal: 'Normal',
-  overweight: 'Fazla kilolu',
-  obese: 'Obez',
+  overweight: 'Overweight',
+  obese: 'Obese',
 };
 
 export function calculateBmi(weightKg: number, heightCm: number): number | null {
@@ -31,7 +31,7 @@ export function calculateBmi(weightKg: number, heightCm: number): number | null 
   return round(weightKg / (h * h), 1);
 }
 
-// DSO siniflandirmasi. Kaslı kisilerde yaniltici olabilir - UI'da not dusulmeli.
+// WHO classification. Can be misleading for muscular individuals - should note in UI.
 export function bmiCategory(bmi: number): BmiCategory {
   if (bmi < 18.5) return 'underweight';
   if (bmi < 25) return 'normal';
@@ -39,7 +39,7 @@ export function bmiCategory(bmi: number): BmiCategory {
   return 'obese';
 }
 
-// ============ VUCUT KOMPOZISYONU ============
+// ============ BODY COMPOSITION ============
 
 export type Composition = {
   leanMassKg: number;
@@ -57,10 +57,10 @@ export function bodyComposition(weightKg: number, bodyFatPct: number): Compositi
 
 export type Ffmi = {
   ffmi: number;
-  normalized: number; // 1.80 m boya gore duzeltilmis
+  normalized: number; // Adjusted for 1.80 m height
 };
 
-// Yagsiz kutle indeksi. Normalize deger farkli boylari karsilastirilabilir yapar.
+// Fat-Free Mass Index. Normalized value makes it comparable across different heights.
 export function calculateFfmi(leanMassKg: number, heightCm: number): Ffmi | null {
   if (leanMassKg <= 0 || heightCm <= 0) return null;
   const h = heightCm / 100;
@@ -71,7 +71,7 @@ export function calculateFfmi(leanMassKg: number, heightCm: number): Ffmi | null
   };
 }
 
-// ============ KILO TRENDI ============
+// ============ WEIGHT TREND ============
 
 export type WeightPoint = {
   date: string;
@@ -79,9 +79,9 @@ export type WeightPoint = {
   trendKg: number;
 };
 
-// Gunluk %10 agirlikli ussel hareketli ortalama.
-// Olcumler arasinda bosluk varsa alfa gun sayisina gore buyur,
-// boylece haftada bir tartilan kullanicida trend geride kalmaz.
+// Daily 10% weighted exponential moving average.
+// If there are gaps between measurements, alpha grows based on the number of days,
+// preventing the trend from lagging behind for users who weigh themselves weekly.
 const TREND_ALPHA_PER_DAY = 0.1;
 
 export function weightTrend(
@@ -114,7 +114,7 @@ export function weightTrend(
   return points;
 }
 
-// ============ HAFTALIK DEGISIM HIZI ============
+// ============ WEEKLY RATE OF CHANGE ============
 
 export type WeeklyRate = {
   kgPerWeek: number;
@@ -127,8 +127,8 @@ const RATE_WINDOW_DAYS = 28;
 const MIN_ENTRIES = 4;
 const MIN_SPAN_DAYS = 7;
 
-// Son 28 gunun ham olcumlerine en kucuk kareler dogrusu.
-// Yetersiz veri varsa null: tahmin uydurmak yerine hic gostermiyoruz.
+// Least squares line on raw measurements of the last 28 days.
+// Returns null if data is insufficient: rather than fabricating an estimate, we hide it.
 export function weeklyWeightRate(
   metrics: BodyMetric[],
   windowDays = RATE_WINDOW_DAYS,

@@ -1,8 +1,8 @@
-﻿import { useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Switch } from 'react-native';
+﻿import { fetchLastSetsForExercise } from '@/features/workouts/api';
 import { setLogSchema } from '@/features/workouts/schemas';
-import { fetchLastSetsForExercise } from '@/features/workouts/api';
 import type { Exercise, SetLog } from '@/types/workout';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 type Props = {
   exercise: Exercise;
@@ -55,7 +55,7 @@ export function SetForm({ exercise, nextSetIndex, onSubmit }: Props) {
       setReps('');
       setRpe('');
     } catch {
-      setError('Set kaydedilemedi.');
+      setError('Could not save set.');
     } finally {
       setBusy(false);
     }
@@ -67,13 +67,13 @@ export function SetForm({ exercise, nextSetIndex, onSubmit }: Props) {
 
       {lastSets.length > 0 && (
         <Text style={s.lastSets}>
-          Son: {lastSets.map((l) => `${l.weight_kg}kg x ${l.reps}`).join('  ')}
+          Last: {lastSets.map((l) => `${l.weight_kg}kg x ${l.reps}`).join('  ')}
         </Text>
       )}
 
       <View style={s.inputRow}>
         <View style={s.inputGroup}>
-          <Text style={s.label}>Agirlik (kg)</Text>
+          <Text style={s.label}>Weight (kg)</Text>
           <TextInput
             style={s.input}
             value={weight}
@@ -83,7 +83,7 @@ export function SetForm({ exercise, nextSetIndex, onSubmit }: Props) {
           />
         </View>
         <View style={s.inputGroup}>
-          <Text style={s.label}>Tekrar</Text>
+          <Text style={s.label}>Reps</Text>
           <TextInput
             style={s.input}
             value={reps}
@@ -105,7 +105,7 @@ export function SetForm({ exercise, nextSetIndex, onSubmit }: Props) {
       </View>
 
       <View style={s.warmupRow}>
-        <Text style={s.label}>Isinma seti</Text>
+        <Text style={s.label}>Warmup set</Text>
         <Switch value={isWarmup} onValueChange={setIsWarmup} />
       </View>
 
@@ -113,7 +113,7 @@ export function SetForm({ exercise, nextSetIndex, onSubmit }: Props) {
 
       <Pressable style={[s.button, busy && s.disabled]} onPress={handleAdd} disabled={busy}>
         <Text style={s.buttonText}>
-          {busy ? 'Kaydediliyor...' : `${nextSetIndex}. seti ekle`}
+          {busy ? 'Saving...' : `Add set ${nextSetIndex}`}
         </Text>
       </Pressable>
     </View>

@@ -60,7 +60,7 @@ export default function HistoryTab() {
   if (sessions.length === 0) {
     return (
       <View style={s.center}>
-        <Text style={s.empty}>Henuz antrenman kaydin yok.</Text>
+        <Text style={s.empty}>No workout records yet.</Text>
       </View>
     );
   }
@@ -79,16 +79,16 @@ export default function HistoryTab() {
             onPress={() => router.push({ pathname: '/session/[id]', params: { id: item.id } })}
           >
             <Text style={s.rowTitle}>
-              {item.title ?? new Date(item.performed_at).toLocaleDateString('tr-TR')}
+              {item.title ?? new Date(item.performed_at).toLocaleDateString('en-US')}
             </Text>
             <Text style={s.rowMeta}>
-              {new Date(item.performed_at).toLocaleString('tr-TR', {
+              {new Date(item.performed_at).toLocaleString('en-US', {
                 day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
               })}
             </Text>
             {stat && (
               <Text style={s.rowStat}>
-                {stat.exerciseCount} hareket  ·  {stat.setCount} set  ·  {formatVolume(stat.volumeKg)}
+                {stat.exerciseCount} exercises  ·  {stat.setCount} sets  ·  {formatVolume(stat.volumeKg)}
               </Text>
             )}
           </Pressable>
@@ -105,19 +105,19 @@ function WeeklySummary({ stats }: { stats: WeeklyStats }) {
   return (
     <View style={s.summary}>
       <View style={s.summaryHead}>
-        <Text style={s.summaryLabel}>Son 7 gun</Text>
+        <Text style={s.summaryLabel}>Last 7 days</Text>
         {weekStreak > 0 && (
           <View style={s.streak}>
             <Flame color="#d97706" size={16} />
-            <Text style={s.streakText}>{weekStreak} hafta seri</Text>
+            <Text style={s.streakText}>{weekStreak} week streak</Text>
           </View>
         )}
       </View>
 
       <View style={s.metricRow}>
-        <Metric value={String(current.sessions)} label="antrenman" />
-        <Metric value={String(current.sets)} label="set" />
-        <Metric value={formatVolume(current.volumeKg)} label="hacim" />
+        <Metric value={String(current.sessions)} label="workouts" />
+        <Metric value={String(current.sets)} label="sets" />
+        <Metric value={formatVolume(current.volumeKg)} label="volume" />
       </View>
 
       {volumeChangePct !== null && (
@@ -128,13 +128,13 @@ function WeeklySummary({ stats }: { stats: WeeklyStats }) {
             <TrendingDown color="#dc2626" size={16} />
           )}
           <Text style={[s.changeText, { color: up ? '#16a34a' : '#dc2626' }]}>
-            Onceki haftaya gore {up ? '+' : ''}{volumeChangePct}% hacim
+            {up ? '+' : ''}{volumeChangePct}% volume vs last week
           </Text>
         </View>
       )}
 
       {current.sessions === 0 && (
-        <Text style={s.summaryHint}>Bu hafta henuz antrenman yapmadin.</Text>
+        <Text style={s.summaryHint}>No workouts completed this week yet.</Text>
       )}
     </View>
   );

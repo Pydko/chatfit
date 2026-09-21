@@ -15,12 +15,12 @@ export function RestTimerBar({ timer }: { timer: RestTimer }) {
       <View style={s.row}>
         <Timer color="#fff" size={20} />
         <Text style={s.time}>{formatDuration(timer.remaining)}</Text>
-        <Text style={s.label}>dinlenme</Text>
+        <Text style={s.label}>rest</Text>
 
         <View style={s.actions}>
           <Pressable style={s.action} onPress={() => timer.addSeconds(30)} hitSlop={8}>
             <Plus color="#fff" size={16} />
-            <Text style={s.actionText}>30 sn</Text>
+            <Text style={s.actionText}>30s</Text>
           </Pressable>
 
           <Pressable style={s.action} onPress={timer.stop} hitSlop={8}>

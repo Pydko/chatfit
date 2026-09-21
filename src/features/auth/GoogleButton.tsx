@@ -1,7 +1,7 @@
-﻿import { useEffect, useState } from 'react';
-import { Pressable, Text, StyleSheet, Alert } from 'react-native';
+﻿import { supabase } from '@/lib/supabase';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-import { supabase } from '@/lib/supabase';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text } from 'react-native';
 
 export function GoogleButton() {
   const [busy, setBusy] = useState(false);
@@ -19,7 +19,7 @@ export function GoogleButton() {
       const response = await GoogleSignin.signIn();
 
       const idToken = response.data?.idToken;
-      if (!idToken) throw new Error('Google kimlik dogrulamasi tamamlanamadi.');
+      if (!idToken) throw new Error('Google authentication could not be completed.');
 
       const { error } = await supabase.auth.signInWithIdToken({
         provider: 'google',
@@ -29,7 +29,7 @@ export function GoogleButton() {
     } catch (e: any) {
       if (e?.code === statusCodes.SIGN_IN_CANCELLED) return;
       console.log('GOOGLE ERROR:', e?.code, e?.message);
-      Alert.alert('Giris yapilamadi', 'Lutfen tekrar dene.');
+      Alert.alert('Sign in failed', 'Please try again.');
     } finally {
       setBusy(false);
     }
@@ -37,7 +37,7 @@ export function GoogleButton() {
 
   return (
     <Pressable style={[s.button, busy && s.disabled]} onPress={handlePress} disabled={busy}>
-      <Text style={s.text}>Google ile devam et</Text>
+      <Text style={s.text}>Continue with Google</Text>
     </Pressable>
   );
 }

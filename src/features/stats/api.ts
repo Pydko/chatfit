@@ -9,9 +9,9 @@ export type StatsData = {
 const EMPTY: StatsData = { sets: [], sessions: [] };
 
 /**
- * Son N gunluk set ve seans kayitlarini ceker.
- * RLS sayesinde yalnizca kullanicinin kendi satirlari doner.
- * Cevrimdisiyken hata firlatmaz, bos veri doner.
+ * Fetches set and session logs for the last N days.
+ * Thanks to RLS, only the user's own rows are returned.
+ * Does not throw an error when offline, returns empty data instead.
  */
 export async function fetchStatsData(days = 28): Promise<StatsData> {
   const since = new Date(Date.now() - days * 86_400_000).toISOString();

@@ -49,16 +49,16 @@ export default function ExerciseDetail() {
     return working.reduce((a, b) => (b.weight_kg > a.weight_kg ? b : a));
   }, [history]);
 
-  // Trend analizi
+  // Trend analysis
   const trend = useMemo(() => {
     if (history.length < 3) return null;
     return analyzeTrend(history);
   }, [history]);
 
-  // Progression önerisi
+  // Progression suggestion
   const lastSession = useMemo(() => {
     if (sessions.length === 0) return [];
-    return sessions[0][1]; // en yeni seansın setleri
+    return sessions[0][1]; // sets of the newest session
   }, [sessions]);
 
   const progression = useMemo(() => {
@@ -72,7 +72,7 @@ export default function ExerciseDetail() {
     });
   }, [lastSession, sessions]);
 
-  // Hedef ağırlık
+  // Target weight
   const targetWeight = useMemo(() => {
     if (best && history.length > 0) {
       return suggestWeightForTargetReps(history, 6);
@@ -80,7 +80,7 @@ export default function ExerciseDetail() {
     return null;
   }, [best, history]);
 
-  // Hedefe kaç hafta
+  // Weeks to target
   const weeksToTarget = useMemo(() => {
     if (!targetWeight || targetWeight <= 0) return null;
     return estimateWeeksToTarget(history, targetWeight + 5);
@@ -96,7 +96,7 @@ export default function ExerciseDetail() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: exercise?.name ?? 'Hareket' }} />
+      <Stack.Screen options={{ headerShown: true, title: exercise?.name ?? 'Exercise' }} />
       <ScrollView style={s.container} contentContainerStyle={{ padding: 16, gap: 16 }}>
         {exercise && (
           <View style={s.header}>
@@ -107,12 +107,12 @@ export default function ExerciseDetail() {
 
         {best && (
           <View style={s.statCard}>
-            <Text style={s.statLabel}>En agir set</Text>
+            <Text style={s.statLabel}>Personal Best Set</Text>
             <Text style={s.statValue}>
               {best.weight_kg} kg x {best.reps}
             </Text>
             <Text style={s.statDate}>
-              {new Date(best.performed_at).toLocaleDateString('tr-TR')}
+              {new Date(best.performed_at).toLocaleDateString('en-US')}
             </Text>
           </View>
         )}
@@ -125,7 +125,7 @@ export default function ExerciseDetail() {
                 <>
                   <TrendingUp color="#22c55e" size={20} />
                   <Text style={[s.trendLabel, { color: '#22c55e' }]}>
-                    {Math.abs(trend.changePercent).toFixed(1)}% ilerleme
+                    {Math.abs(trend.changePercent).toFixed(1)}% progress
                   </Text>
                 </>
               )}
@@ -133,14 +133,14 @@ export default function ExerciseDetail() {
                 <>
                   <TrendingDown color="#ef4444" size={20} />
                   <Text style={[s.trendLabel, { color: '#ef4444' }]}>
-                    {Math.abs(trend.changePercent).toFixed(1)}% gerileme
+                    {Math.abs(trend.changePercent).toFixed(1)}% regression
                   </Text>
                 </>
               )}
               {trend.direction === 'flat' && (
                 <>
                   <Minus color="#8b5cf6" size={20} />
-                  <Text style={[s.trendLabel, { color: '#8b5cf6' }]}>Sabit performans</Text>
+                  <Text style={[s.trendLabel, { color: '#8b5cf6' }]}>Stable performance</Text>
                 </>
               )}
             </View>
@@ -151,12 +151,12 @@ export default function ExerciseDetail() {
         {/* Progression Suggestion */}
         {progression && progression.action !== 'no_data' && (
           <View style={s.suggestionCard}>
-            <Text style={s.suggestionTitle}>Sonraki Adım</Text>
+            <Text style={s.suggestionTitle}>Next Step</Text>
             <View style={s.actionRow}>
               <Text style={s.actionLabel}>
-                {progression.action === 'increase_weight' && '📈 Ağırlık Artır'}
-                {progression.action === 'add_reps' && '➕ Tekrar Ekle'}
-                {progression.action === 'hold' && '⏸️ Bekle'}
+                {progression.action === 'increase_weight' && '📈 Increase Weight'}
+                {progression.action === 'add_reps' && '➕ Add Reps'}
+                {progression.action === 'hold' && '⏸️ Hold'}
                 {progression.action === 'deload' && '⬇️ Deload'}
               </Text>
             </View>
@@ -191,40 +191,40 @@ export default function ExerciseDetail() {
                     },
                   ]}
                 >
-                  {progression.confidence === 'high' && 'Yüksek kesinlik'}
-                  {progression.confidence === 'medium' && 'Orta kesinlik'}
-                  {progression.confidence === 'low' && 'Düşük kesinlik'}
+                  {progression.confidence === 'high' && 'High confidence'}
+                  {progression.confidence === 'medium' && 'Medium confidence'}
+                  {progression.confidence === 'low' && 'Low confidence'}
                 </Text>
               </View>
             </View>
           </View>
         )}
 
-        {/* Hedef Ağırlık */}
+        {/* Target Weight */}
         {targetWeight !== null && targetWeight > 0 ? (
           <View style={s.targetCard}>
-            <Text style={s.targetLabel}>Hedef Ağırlık (6 tekrar)</Text>
+            <Text style={s.targetLabel}>Target Weight (6 reps)</Text>
             <Text style={s.targetValue}>{targetWeight.toFixed(1)} kg</Text>
             {weeksToTarget?.weeks != null && weeksToTarget.weeks > 0 ? (
               <Text style={s.targetNote}>
-                ~{weeksToTarget.weeks} haftada
+                ~in {weeksToTarget.weeks} weeks
               </Text>
             ) : null}
           </View>
         ) : null}
 
-        {/* Form Videolari */}
+        {/* Form Videos */}
         {id ? <VideoSection key={id} exerciseId={id} /> : null}
 
-        <Text style={s.sectionTitle}>Geçmiş ({sessions.length} antrenman)</Text>
+        <Text style={s.sectionTitle}>History ({sessions.length} workouts)</Text>
 
         {sessions.length === 0 ? (
-          <Text style={s.empty}>Bu hareketi henüz çalışmadın.</Text>
+          <Text style={s.empty}>You haven't performed this exercise yet.</Text>
         ) : (
           sessions.map(([sessionId, sets]) => (
             <View key={sessionId} style={s.sessionCard}>
               <Text style={s.sessionDate}>
-                {new Date(sets[0].performed_at).toLocaleDateString('tr-TR', {
+                {new Date(sets[0].performed_at).toLocaleDateString('en-US', {
                   day: 'numeric', month: 'long', year: 'numeric',
                 })}
               </Text>
@@ -238,7 +238,7 @@ export default function ExerciseDetail() {
                     <Text key={set.id} style={s.setLine}>
                       {set.set_index}. {set.weight_kg} kg x {set.reps}
                       {set.rpe ? `  RPE ${set.rpe}` : ''}
-                      {set.is_warmup ? '  (ısınma)' : ''}
+                      {set.is_warmup ? '  (warmup)' : ''}
                     </Text>
                   ))}
               </View>

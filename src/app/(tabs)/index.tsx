@@ -38,7 +38,7 @@ export default function WorkoutTab() {
       setCounts(Object.fromEntries(entries));
     } catch (e) {
       console.log('WORKOUT TAB ERROR:', e);
-      Alert.alert('Hata', 'Veriler yuklenemedi.');
+      Alert.alert('Error', 'Failed to load data.');
     } finally {
       setLoading(false);
     }
@@ -53,7 +53,7 @@ export default function WorkoutTab() {
       await addProgramDay(program.id);
       await load();
     } catch {
-      Alert.alert('Hata', 'Antrenman eklenemedi.');
+      Alert.alert('Error', 'Could not add workout.');
     } finally {
       setBusy(false);
     }
@@ -67,7 +67,7 @@ export default function WorkoutTab() {
       const session = existing ?? (await startSessionForDay(day));
       router.push({ pathname: '/session/[id]', params: { id: session.id } });
     } catch {
-      Alert.alert('Hata', 'Antrenman baslatilamadi.');
+      Alert.alert('Error', 'Could not start workout.');
     } finally {
       setBusy(false);
     }
@@ -79,7 +79,7 @@ export default function WorkoutTab() {
       const session = await startSession();
       router.push({ pathname: '/session/[id]', params: { id: session.id } });
     } catch {
-      Alert.alert('Hata', 'Antrenman baslatilamadi.');
+      Alert.alert('Error', 'Could not start workout.');
     } finally {
       setBusy(false);
     }
@@ -97,9 +97,9 @@ export default function WorkoutTab() {
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, gap: 16 }}>
       {days.length === 0 && (
         <View style={s.card}>
-          <Text style={s.cardTitle}>Henuz antrenmanin yok</Text>
+          <Text style={s.cardTitle}>No workouts yet</Text>
           <Text style={s.cardMeta}>
-            Asagidan yeni bir antrenman olustur, sonra icine hareketlerini ekle.
+            Create a new workout below, then add your exercises to it.
           </Text>
         </View>
       )}
@@ -117,11 +117,11 @@ export default function WorkoutTab() {
       ))}
 
       <Pressable style={[s.secondary, busy && s.disabled]} onPress={handleAddDay} disabled={busy}>
-        <Text style={s.secondaryText}>+ Yeni Antrenman</Text>
+        <Text style={s.secondaryText}>+ New Workout</Text>
       </Pressable>
 
       <Pressable style={s.tertiary} onPress={handleFreeStart} disabled={busy}>
-        <Text style={s.tertiaryText}>Programsiz antrenman baslat</Text>
+        <Text style={s.tertiaryText}>Start freestyle workout</Text>
       </Pressable>
     </ScrollView>
   );
@@ -153,7 +153,7 @@ function DayRow({
       setEditing(false);
       onRenamed();
     } catch {
-      Alert.alert('Hata', 'Ad degistirilemedi.');
+      Alert.alert('Error', 'Could not rename.');
     }
   }
 
@@ -168,7 +168,7 @@ function DayRow({
           onSubmitEditing={save}
         />
         <Pressable style={s.saveButton} onPress={save}>
-          <Text style={s.saveButtonText}>Kaydet</Text>
+          <Text style={s.saveButtonText}>Save</Text>
         </Pressable>
       </View>
     );
@@ -178,7 +178,7 @@ function DayRow({
     <View style={s.dayCard}>
       <Pressable style={{ flex: 1 }} onPress={onOpen}>
         <Text style={s.dayName}>{day.name}</Text>
-        <Text style={s.dayMeta}>{exerciseCount} hareket</Text>
+        <Text style={s.dayMeta}>{exerciseCount} exercises</Text>
       </Pressable>
       <Pressable onPress={onStart} disabled={busy} hitSlop={10} style={s.iconButton}>
         <Play color={colors.primary} size={18} />

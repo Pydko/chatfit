@@ -9,8 +9,8 @@ declare const Deno: {
 
 const YT_SEARCH_URL = 'https://www.googleapis.com/youtube/v3/search';
 
-// YouTube ucretsiz kota: 10.000 birim/gun, her search.list = 100 birim -> 100 arama/gun.
-// Kullanici basina 20, toplamda 80 ile sinirla; kalan 20 birim guvenlik payi.
+// YouTube free quota: 10,000 units/day, each search.list = 100 units -> 100 searches/day.
+// Limit to 20 per user, 80 total globally; the remaining 20 units serve as a safety buffer.
 const DAILY_USER_LIMIT = 20;
 const DAILY_GLOBAL_LIMIT = 80;
 
@@ -19,7 +19,7 @@ const MIN_QUERY_LENGTH = 2;
 const MAX_QUERY_LENGTH = 60;
 const MAX_RESULTS = 6;
 
-// CORS: yildiz yok. Native istekler Origin gondermez, onlar zaten etkilenmez.
+// CORS: No wildcard. Native requests do not send an Origin header and remain unaffected.
 const ALLOWED_ORIGINS = new Set([
   'http://localhost:8081',
   'http://localhost:19006',
@@ -63,7 +63,7 @@ function sanitizeQuery(raw: string): string {
     .trim();
 }
 
-// Ham hareket adi yerine kalip kullanmak sonuc kalitesini belirgin artiriyor.
+// Using a template instead of raw exercise names significantly improves search quality.
 function buildSearchQuery(subject: string, lang: Lang): string {
   return lang === 'tr'
     ? `${subject} nasil yapilir dogru form`
@@ -93,24 +93,24 @@ Deno.serve(async (req: Request) => {
 
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) {
-    return json({ error: 'Oturum bulunamadi.' }, 401, cors);
+    return json({ error: 'Session not found.' }, 401, cors);
   }
 
   const apiKey = Deno.env.get('YOUTUBE_API_KEY');
   if (!apiKey) {
-    return json({ error: 'Sunucu yapilandirma hatasi.' }, 500, cors);
+    return json({ error: 'Server configuration error.' }, 500, cors);
   }
 
   let body: { exercise_id?: string; query?: string; lang?: string };
   try {
     body = await req.json();
   } catch {
-    return json({ error: 'Gecersiz istek govdesi.' }, 400, cors);
+    return json({ error: 'Invalid request body.' }, 400, cors);
   }
 
   const lang: Lang = body.lang === 'en' ? 'en' : 'tr';
 
-  // Kullanici kimligi (RLS'li client)
+  // User identity (RLS-enabled client)
   const userClient = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -119,26 +119,26 @@ Deno.serve(async (req: Request) => {
 
   const { data: userData, error: userError } = await userClient.auth.getUser();
   if (userError || !userData.user) {
-    return json({ error: 'Oturum gecersiz.' }, 401, cors);
+    return json({ error: 'Invalid session.' }, 401, cors);
   }
   const userId = userData.user.id;
 
-  // Cache ve sayac tablolari service_role ile yazilir
+  // Cache and counter tables are written using service_role
   const admin = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
 
-  // --- Arama konusunu belirle ---
+  // --- Determine search subject ---
   let subject = '';
   let exerciseId: string | null = null;
 
   if (body.exercise_id) {
     if (!UUID_RE.test(body.exercise_id)) {
-      return json({ error: 'Gecersiz hareket kimligi.' }, 400, cors);
+      return json({ error: 'Invalid exercise ID.' }, 400, cors);
     }
-    // userClient kullaniyoruz: RLS sayesinde sadece global katalog + kendi hareketleri
+    // Using userClient: thanks to RLS, restricted to global catalog + own exercises
     const { data: ex } = await userClient
       .from('exercises')
       .select('id, name')
@@ -146,25 +146,25 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (!ex) {
-      return json({ error: 'Hareket bulunamadi.' }, 404, cors);
+      return json({ error: 'Exercise not found.' }, 404, cors);
     }
     subject = ex.name as string;
     exerciseId = ex.id as string;
   } else if (typeof body.query === 'string') {
     subject = sanitizeQuery(body.query);
     if (subject.length < MIN_QUERY_LENGTH) {
-      return json({ error: 'Arama sorgusu cok kisa.' }, 400, cors);
+      return json({ error: 'Search query is too short.' }, 400, cors);
     }
     if (subject.length > MAX_QUERY_LENGTH) {
-      return json({ error: 'Arama sorgusu cok uzun.' }, 400, cors);
+      return json({ error: 'Search query is too long.' }, 400, cors);
     }
   } else {
-    return json({ error: 'exercise_id veya query zorunlu.' }, 400, cors);
+    return json({ error: 'exercise_id or query is required.' }, 400, cors);
   }
 
   const queryKey = `${lang}:${subject.toLocaleLowerCase('tr')}`;
 
-  // --- Onbellek ---
+  // --- Cache ---
   const { data: cached } = await admin
     .from('exercise_videos')
     .select('results, fetched_at')
@@ -179,7 +179,7 @@ Deno.serve(async (req: Request) => {
     return json({ results: cachedResults, cached: true, stale: false }, 200, cors);
   }
 
-  // Bayat cache varsa, kota/hata durumunda ona geri dusecegiz
+  // If stale cache exists, we will fall back to it in case of quota/error conditions
   const fallback = cachedResults;
 
   // --- Rate limit ---
@@ -192,12 +192,12 @@ Deno.serve(async (req: Request) => {
     .gte('created_at', since);
 
   if (userCountError) {
-    return json({ error: 'Limit kontrolu basarisiz.' }, 500, cors);
+    return json({ error: 'Limit check failed.' }, 500, cors);
   }
   if ((userCount ?? 0) >= DAILY_USER_LIMIT) {
     if (fallback) return json({ results: fallback, cached: true, stale: true }, 200, cors);
     return json(
-      { error: `Gunluk video arama limitine (${DAILY_USER_LIMIT}) ulastin. Yarin tekrar dene.` },
+      { error: `You have reached your daily video search limit (${DAILY_USER_LIMIT}). Try again tomorrow.` },
       429,
       cors,
     );
@@ -210,7 +210,7 @@ Deno.serve(async (req: Request) => {
 
   if ((globalCount ?? 0) >= DAILY_GLOBAL_LIMIT) {
     if (fallback) return json({ results: fallback, cached: true, stale: true }, 200, cors);
-    return json({ error: 'Video arama servisi bugunluk doldu. Yarin tekrar dene.' }, 429, cors);
+    return json({ error: 'Video search service has reached its daily limit. Try again tomorrow.' }, 429, cors);
   }
 
   // --- YouTube ---
@@ -233,7 +233,7 @@ Deno.serve(async (req: Request) => {
   } catch (e) {
     console.log('YOUTUBE NETWORK ERROR:', e);
     if (fallback) return json({ results: fallback, cached: true, stale: true }, 200, cors);
-    return json({ error: 'Video servisine ulasilamadi.' }, 502, cors);
+    return json({ error: 'Could not reach the video service.' }, 502, cors);
   }
 
   if (!ytResponse.ok) {
@@ -241,9 +241,9 @@ Deno.serve(async (req: Request) => {
     console.log('YOUTUBE ERROR:', ytResponse.status, errText);
     if (fallback) return json({ results: fallback, cached: true, stale: true }, 200, cors);
     if (ytResponse.status === 403) {
-      return json({ error: 'Video arama kotasi doldu. Yarin tekrar dene.' }, 503, cors);
+      return json({ error: 'Video search quota exhausted. Try again tomorrow.' }, 503, cors);
     }
-    return json({ error: 'Video servisi hata verdi.' }, 502, cors);
+    return json({ error: 'Video service encountered an error.' }, 502, cors);
   }
 
   const raw = await ytResponse.json();
@@ -260,7 +260,7 @@ Deno.serve(async (req: Request) => {
       publishedAt: String(item.snippet.publishedAt ?? ''),
     }));
 
-  // Arama gerceklesti, kota harcandi -> her durumda logla
+  // Search took place, quota was spent -> log in all cases
   await admin.from('video_search_log').insert({
     user_id: userId,
     query: subject.slice(0, 120),

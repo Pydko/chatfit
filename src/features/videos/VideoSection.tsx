@@ -1,9 +1,9 @@
 import {
-    searchVideosForExercise,
-    VideoLimitError,
-    youtubeWatchUrl,
-    type VideoLang,
-    type VideoResult,
+  searchVideosForExercise,
+  VideoLimitError,
+  youtubeWatchUrl,
+  type VideoLang,
+  type VideoResult,
 } from '@/features/videos/api';
 import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
@@ -30,7 +30,7 @@ export function VideoSection({ exerciseId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [isLimit, setIsLimit] = useState(false);
 
-  // Hizli dil degisiminde eski istegin cevabi yenisinin ustune yazmasin
+  // Prevent fast language switches from overwriting new responses with old ones
   const requestId = useRef(0);
 
   async function load(nextLang: VideoLang) {
@@ -51,7 +51,7 @@ export function VideoSection({ exerciseId }: Props) {
       setStale(false);
       setRemaining(null);
       setIsLimit(e instanceof VideoLimitError);
-      setError(e instanceof Error ? e.message : 'Videolar alınamadı.');
+      setError(e instanceof Error ? e.message : 'Could not fetch videos.');
     } finally {
       if (current === requestId.current) setLoading(false);
     }
@@ -73,16 +73,16 @@ export function VideoSection({ exerciseId }: Props) {
       await WebBrowser.openBrowserAsync(youtubeWatchUrl(video.videoId));
     } catch (e) {
       console.log('VIDEO OPEN ERROR:', e);
-      Alert.alert('Hata', 'Video açılamadı.');
+      Alert.alert('Error', 'Could not open video.');
     }
   }
 
-  // Kota dostu: videolar sadece kullanici isteyince aranir
+  // Quota friendly: videos are only searched when requested by the user
   if (!open) {
     return (
       <Pressable style={s.openButton} onPress={handleOpen}>
         <PlayCircle color="#111" size={20} />
-        <Text style={s.openButtonText}>Form videolarını göster</Text>
+        <Text style={s.openButtonText}>Show form videos</Text>
       </Pressable>
     );
   }
@@ -90,7 +90,7 @@ export function VideoSection({ exerciseId }: Props) {
   return (
     <View style={s.container}>
       <View style={s.headerRow}>
-        <Text style={s.title}>Form videoları</Text>
+        <Text style={s.title}>Form videos</Text>
         <View style={s.langRow}>
           {LANGS.map((l) => (
             <Pressable
@@ -112,18 +112,18 @@ export function VideoSection({ exerciseId }: Props) {
           <Text style={s.errorText}>{error}</Text>
           {!isLimit && (
             <Pressable onPress={() => load(lang)}>
-              <Text style={s.retry}>Tekrar dene</Text>
+              <Text style={s.retry}>Try again</Text>
             </Pressable>
           )}
         </View>
       )}
 
       {!loading && !error && videos.length === 0 && (
-        <Text style={s.empty}>Bu hareket için video bulunamadı.</Text>
+        <Text style={s.empty}>No videos found for this exercise.</Text>
       )}
 
       {!loading && stale && videos.length > 0 && (
-        <Text style={s.notice}>Güncel sonuçlar alınamadı, önceki sonuçlar gösteriliyor.</Text>
+        <Text style={s.notice}>Could not fetch latest results, showing previous results.</Text>
       )}
 
       {!loading &&
@@ -151,7 +151,7 @@ export function VideoSection({ exerciseId }: Props) {
         ))}
 
       {!loading && remaining !== null && (
-        <Text style={s.remaining}>Bugün kalan yeni arama hakkın: {remaining}</Text>
+        <Text style={s.remaining}>Remaining new searches today: {remaining}</Text>
       )}
     </View>
   );

@@ -1,7 +1,7 @@
-﻿import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+﻿import { subscribeSync } from '@/lib/sync';
 import { CloudOff, RefreshCw } from 'lucide-react-native';
-import { subscribeSync } from '@/lib/sync';
+import { useEffect, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 export function SyncBanner() {
   const [pending, setPending] = useState(0);
@@ -21,8 +21,8 @@ export function SyncBanner() {
       {syncing ? <RefreshCw color="#8a6d1f" size={16} /> : <CloudOff color="#8a6d1f" size={16} />}
       <Text style={s.text}>
         {syncing
-          ? `${pending} kayit gonderiliyor...`
-          : `${pending} kayit gonderilmeyi bekliyor`}
+          ? `Syncing ${pending} record(s)...`
+          : `${pending} record(s) pending sync`}
       </Text>
     </View>
   );

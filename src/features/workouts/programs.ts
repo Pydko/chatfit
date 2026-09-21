@@ -29,7 +29,7 @@ export type ProgramDayExercise = {
 async function uid(): Promise<string> {
   const { data } = await supabase.auth.getUser();
   const id = data.user?.id;
-  if (!id) throw new Error('Oturum bulunamadi.');
+  if (!id) throw new Error('Session not found.');
   return id;
 }
 
@@ -45,11 +45,11 @@ export async function fetchActiveProgram(): Promise<Program | null> {
   return data?.[0] ?? null;
 }
 
-// Aktif program yoksa sessizce olusturur; kullanici "program" kavramiyla ugrasmaz.
+// Silently creates one if no active program exists; the user doesn't have to deal with the "program" concept.
 export async function ensureActiveProgram(): Promise<Program> {
   const existing = await fetchActiveProgram();
   if (existing) return existing;
-  return createProgram('Antrenmanlarim');
+  return createProgram('My Workouts');
 }
 
 export async function createProgram(name: string): Promise<Program> {
@@ -96,7 +96,7 @@ export async function addProgramDay(programId: string, name?: string): Promise<P
       user_id: userId,
       program_id: programId,
       day_index: nextIndex,
-      name: name?.trim() || `${nextIndex}. Antrenman`,
+      name: name?.trim() || `Workout ${nextIndex}`,
     })
     .select()
     .single();
@@ -179,7 +179,7 @@ export async function updateDayExerciseTargets(
   if (error) throw error;
 }
 
-// Kullanicinin elle yazdigi serbest not: "en son 3 set 60 kg yaptim" gibi.
+// User's manually written free-form note: e.g. "did 3 sets of 60 kg last time".
 export async function updateDayExerciseNote(id: string, note: string): Promise<void> {
   const trimmed = note.trim();
   const { error } = await supabase
@@ -193,26 +193,7 @@ export async function updateDayExerciseNote(id: string, note: string): Promise<v
   if (error) throw error;
 }
 
-// Son yapilan programli seansin gununden sonrakini don
-export async function suggestNextDay(programId: string): Promise<ProgramDay | null> {
-  const days = await fetchProgramDays(programId);
-  if (days.length === 0) return null;
-
-  const { data: last } = await supabase
-    .from('workout_sessions')
-    .select('program_day_id, performed_at')
-    .not('program_day_id', 'is', null)
-    .order('performed_at', { ascending: false })
-    .limit(1);
-
-  const lastDayId = last?.[0]?.program_day_id;
-  if (!lastDayId) return days[0];
-
-  const lastIdx = days.findIndex((d) => d.id === lastDayId);
-  if (lastIdx === -1) return days[0];
-
-  return days[(lastIdx + 1) % days.length];
-}
+// Return the one after the day of the last performed programmed session
 
 export async function startSessionForDay(day: ProgramDay) {
   const userId = await uid();

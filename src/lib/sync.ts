@@ -27,19 +27,14 @@ async function notify() {
   listeners.forEach((l) => l({ pending, syncing }));
 }
 
-export function isOnline(): boolean {
-  return online;
-}
 
-// Bir kuyruk ogesini isle. true donerse kuyruktan silinir.
 async function processItem(item: { id: number; op: string; payload: string }): Promise<boolean> {
   const payload = JSON.parse(item.payload);
 
   if (item.op === 'insert_set_log') {
     const { local_id, ...row } = payload;
 
-    // Ayni kayit iki kez gonderilirse: (session, exercise, set_index) essiz
-    // indeksi ikinciyi reddeder. Bunu basari sayiyoruz - kayit zaten orada.
+
     const { error } = await supabase.from('set_logs').insert(row);
 
     if (error) {
@@ -58,7 +53,6 @@ async function processItem(item: { id: number; op: string; payload: string }): P
   }
 
   if (item.op === 'upsert_note') {
-    // id client tarafinda uretiliyor, upsert idempotent.
     const { error } = await supabase.from('notes').upsert(payload);
     if (error) throw error;
     await markNoteSynced(payload.id);
@@ -72,7 +66,6 @@ async function processItem(item: { id: number; op: string; payload: string }): P
     return true;
   }
 
-  // Bilinmeyen islem - kuyrukta tikanmasin
   return true;
 }
 
@@ -80,7 +73,7 @@ export async function flushQueue(): Promise<void> {
   if (syncing || !online) return;
 
   const { data } = await supabase.auth.getSession();
-  if (!data.session) return; // oturum yoksa gonderme
+  if (!data.session) return; 
 
   syncing = true;
   await notify();
@@ -96,11 +89,9 @@ export async function flushQueue(): Promise<void> {
         } catch (e: any) {
           await markFailed(item.id, e?.message ?? 'unknown');
 
-          // 5 denemeden sonra pes et - kuyrugu tikamasin
           if ((item as any).attempts >= 4) {
             await dequeue(item.id);
           }
-          // Bir oge basarisizsa turu bitir, sonra tekrar dene
           syncing = false;
           await notify();
           return;
@@ -124,7 +115,7 @@ export function startSyncEngine(): () => void {
     notify().catch(() => {});
   });
 
-  // Uygulama acilisinda ve periyodik olarak dene
+
   flushQueue().catch(() => {});
   const timer = setInterval(() => {
     flushQueue().catch(() => {});

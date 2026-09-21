@@ -10,23 +10,23 @@ export type ProgressionSuggestion = {
 };
 
 export type ProgressionInput = {
-  /** Bu hareketin son seansindaki calisma setleri */
+  /** Working sets from the last session for this exercise */
   lastSessionSets: SetLog[];
-  /** Onceki seanslarin setleri (yeniden eskiye) */
+  /** Sets from previous sessions (newest to oldest) */
   previousSessions: SetLog[][];
-  /** Hedef tekrar araligi */
+  /** Target rep range */
   targetRepsMin?: number;
   targetRepsMax?: number;
-  /** Agirlik artis adimi (barbell 2.5, dumbbell genelde 2) */
+  /** Weight increment step (barbell 2.5, dumbbell usually 2) */
   increment?: number;
 };
 
 /**
- * Double progression mantigi:
- * - Tum setlerde hedef araligin ustune cikildiysa -> agirligi artir, alt sinira don
- * - Aralik icindeyse -> tekrar eklemeye devam et
- * - Alt sinirin altina dusuldiyse -> ayni agirlikta kal
- * - Ust uste 3 seans gerileme varsa -> deload oner
+ * Double progression logic:
+ * - If all sets exceed the target range -> increase weight, return to lower bound
+ * - If within range -> continue adding reps
+ * - If below lower bound -> stay at the same weight
+ * - If performance drops for 3 consecutive sessions -> suggest deload
  */
 export function suggestProgression(input: ProgressionInput): ProgressionSuggestion {
   const {
@@ -44,7 +44,7 @@ export function suggestProgression(input: ProgressionInput): ProgressionSuggesti
       action: 'no_data',
       weightKg: 0,
       reps: targetRepsMin,
-      reason: 'Bu hareket icin henuz kayit yok.',
+      reason: 'No records for this exercise yet.',
       confidence: 'low',
     };
   }
@@ -55,7 +55,7 @@ export function suggestProgression(input: ProgressionInput): ProgressionSuggesti
   const avgReps =
     setsAtTopWeight.reduce((sum, s) => sum + s.reps, 0) / setsAtTopWeight.length;
 
-  // Gerileme kontrolu: son 3 seansin en iyi 1RM'i suruyor mu dusuyor mu
+  // Decline check: checking if the best 1RM of the last 3 sessions is trending up or down
   if (previousSessions.length >= 2) {
     const maxes = [working, ...previousSessions.slice(0, 2)].map((sets) => {
       const w = sets.filter((s) => !s.is_warmup);
@@ -70,46 +70,46 @@ export function suggestProgression(input: ProgressionInput): ProgressionSuggesti
         weightKg: roundToPlate(topWeight * 0.9, increment),
         reps: targetRepsMax,
         reason:
-          'Son uc seansta performans dustu. Agirligi %10 azaltip toparlanmayi denemek mantikli olabilir.',
+          'Performance dropped in the last three sessions. It might be wise to reduce weight by 10% and attempt recovery.',
         confidence: 'medium',
       };
     }
   }
 
-  // Tum setler hedef araligin ustunde -> agirlik artir
+  // All sets above target range -> increase weight
   if (minReps >= targetRepsMax) {
     const newWeight = roundToPlate(topWeight + increment, increment);
     return {
       action: 'increase_weight',
       weightKg: newWeight,
       reps: targetRepsMin,
-      reason: `Tum setlerde ${targetRepsMax} tekrari tamamladin. Agirligi ${increment} kg artirmayi deneyebilirsin.`,
+      reason: `You completed ${targetRepsMax} reps across all sets. You can try increasing the weight by ${increment} kg.`,
       confidence: 'high',
     };
   }
 
-  // Aralik icinde -> tekrar ekle
+  // Within range -> add reps
   if (minReps >= targetRepsMin) {
     return {
       action: 'add_reps',
       weightKg: topWeight,
       reps: Math.min(Math.ceil(avgReps) + 1, targetRepsMax),
-      reason: `Ayni agirlikta tekrar sayisini artirmaya calis. Hedef: her sette ${targetRepsMax} tekrar.`,
+      reason: `Try to increase the rep count at the same weight. Target: ${targetRepsMax} reps per set.`,
       confidence: 'high',
     };
   }
 
-  // Alt sinirin altinda -> sabit kal
+  // Below lower bound -> hold
   return {
     action: 'hold',
     weightKg: topWeight,
     reps: targetRepsMin,
-    reason: `Henuz ${targetRepsMin} tekrara ulasmadin. Ayni agirlikta kalip tekrar sayisini yukseltmeye odaklan.`,
+    reason: `You haven't reached ${targetRepsMin} reps yet. Focus on staying at the same weight and raising your rep count.`,
     confidence: 'high',
   };
 }
 
-/** Belirli bir hedef tekrar icin agirlik onerisi (1RM uzerinden) */
+/** Weight suggestion for a specific target rep count (based on 1RM) */
 export function suggestWeightForTargetReps(
   sets: SetLog[],
   targetReps: number,

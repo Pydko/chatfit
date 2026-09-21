@@ -3,10 +3,10 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList, Pressable, StyleSheet,
-    Text, TextInput,
-    View,
+  ActivityIndicator,
+  FlatList, Pressable, StyleSheet,
+  Text, TextInput,
+  View,
 } from 'react-native';
 
 export default function NotesTab() {
@@ -44,7 +44,7 @@ export default function NotesTab() {
     <View style={s.container}>
       <TextInput
         style={s.search}
-        placeholder="Notlarda ara..."
+        placeholder="Search notes..."
         value={query}
         onChangeText={setQuery}
         autoCapitalize="none"
@@ -57,8 +57,8 @@ export default function NotesTab() {
         ListEmptyComponent={
           <Text style={s.empty}>
             {notes.length === 0
-              ? 'Henuz notun yok. Antrenman notlarini buraya yaz, kocla paylas.'
-              : 'Sonuc bulunamadi.'}
+              ? 'No notes yet. Write down your workout notes here and share them with your coach.'
+              : 'No results found.'}
           </Text>
         }
         renderItem={({ item }) => (
@@ -66,13 +66,13 @@ export default function NotesTab() {
             style={s.row}
             onPress={() => router.push({ pathname: '/note/[id]', params: { id: item.id } })}
           >
-            <Text style={s.rowTitle}>{item.title || 'Basliksiz not'}</Text>
+            <Text style={s.rowTitle}>{item.title || 'Untitled note'}</Text>
             <Text style={s.rowPreview} numberOfLines={2}>{notePreview(item.body)}</Text>
             <Text style={s.rowMeta}>
-              {new Date(item.updated_at).toLocaleString('tr-TR', {
+              {new Date(item.updated_at).toLocaleString('en-US', {
                 day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
               })}
-              {item.is_pending ? '  ·  Gonderilmeyi bekliyor' : ''}
+              {item.is_pending ? '  ·  Pending sync' : ''}
             </Text>
           </Pressable>
         )}

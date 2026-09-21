@@ -16,7 +16,7 @@ export type Trend = {
   summary: string;
 };
 
-/** Setleri seansa gore gruplayip her seansin ozetini cikar. */
+/** Group sets by session and summarize each session. */
 export function buildTrend(sets: SetLog[]): TrendPoint[] {
   const bySession = new Map<string, SetLog[]>();
   for (const set of sets) {
@@ -45,7 +45,7 @@ export function buildTrend(sets: SetLog[]): TrendPoint[] {
   );
 }
 
-/** Son N seansin trendini yorumla. */
+/** Interpret the trend of the last N sessions. */
 export function analyzeTrend(sets: SetLog[], windowSize = 6): Trend {
   const all = buildTrend(sets);
   const points = all.slice(-windowSize);
@@ -55,7 +55,7 @@ export function analyzeTrend(sets: SetLog[], windowSize = 6): Trend {
       points,
       direction: 'insufficient',
       changePercent: 0,
-      summary: 'Trend icin en az 3 antrenman kaydi gerekiyor.',
+      summary: 'At least 3 workout logs are required for trend analysis.',
     };
   }
 
@@ -68,14 +68,14 @@ export function analyzeTrend(sets: SetLog[], windowSize = 6): Trend {
   else if (changePercent < -2) direction = 'down';
 
   const weeks = weeksBetween(points[0].date, points[points.length - 1].date);
-  const period = weeks >= 1 ? `${Math.round(weeks)} haftada` : 'son antrenmanlarda';
+  const period = weeks >= 1 ? `over ${Math.round(weeks)} week(s)` : 'in recent workouts';
 
   const summary =
     direction === 'up'
-      ? `${period} tahmini gucun %${Math.abs(changePercent).toFixed(1)} artmis.`
+      ? `Estimated strength has increased by ${Math.abs(changePercent).toFixed(1)}% ${period}.`
       : direction === 'down'
-        ? `${period} tahmini gucun %${Math.abs(changePercent).toFixed(1)} dusmus. Dinlenme ve beslenmeyi gozden gecirmek faydali olabilir.`
-        : `${period} performansin sabit seyrediyor.`;
+        ? `Estimated strength has decreased by ${Math.abs(changePercent).toFixed(1)}% ${period}. Reviewing sleep and nutrition may be helpful.`
+        : `Performance has remained stable ${period}.`;
 
   return { points, direction, changePercent, summary };
 }
@@ -85,7 +85,7 @@ function weeksBetween(a: string, b: string): number {
   return ms / (1000 * 60 * 60 * 24 * 7);
 }
 
-/** Kac hafta sonra hedef agirliga ulasilir? Mevcut hiza gore kaba tahmin. */
+/** In how many weeks will the target weight be reached? Rough estimation based on current velocity. */
 export function estimateWeeksToTarget(
   sets: SetLog[],
   targetWeightKg: number,
@@ -94,7 +94,7 @@ export function estimateWeeksToTarget(
   if (points.length < 4) {
     return {
       weeks: null,
-      note: 'Tahmin icin en az 4 antrenman kaydi gerekiyor.',
+      note: 'At least 4 workout logs are required for estimation.',
     };
   }
 
@@ -103,7 +103,7 @@ export function estimateWeeksToTarget(
   const weeksElapsed = weeksBetween(first.date, last.date);
 
   if (weeksElapsed < 1) {
-    return { weeks: null, note: 'Tahmin icin daha uzun bir gecmis gerekiyor.' };
+    return { weeks: null, note: 'A longer history is required for estimation.' };
   }
 
   const gain = last.topWeight - first.topWeight;
@@ -112,13 +112,13 @@ export function estimateWeeksToTarget(
   if (perWeek <= 0) {
     return {
       weeks: null,
-      note: 'Mevcut verilerle ilerleme hizi hesaplanamiyor.',
+      note: 'Progression rate cannot be calculated with current data.',
     };
   }
 
   const remaining = targetWeightKg - last.topWeight;
   if (remaining <= 0) {
-    return { weeks: 0, note: 'Bu agirliga zaten ulastin.' };
+    return { weeks: 0, note: 'You have already reached this weight.' };
   }
 
   const weeks = Math.ceil(remaining / perWeek);
@@ -126,6 +126,6 @@ export function estimateWeeksToTarget(
   return {
     weeks,
     note:
-      'Bu tahmin gecmis hizina dayanir. Ilerleme dogrusal degildir; uyku, beslenme ve stres sonucu degistirir.',
+      'This estimate is based on past velocity. Progression is not linear; sleep, nutrition, and stress can alter results.',
   };
 }

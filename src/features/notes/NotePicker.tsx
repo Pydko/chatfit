@@ -2,12 +2,12 @@ import { fetchNotes, notePreview, type LocalNote } from '@/features/notes/api';
 import { Check } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList, Modal,
-    Pressable,
-    StyleSheet,
-    Text, TextInput,
-    View,
+  ActivityIndicator,
+  FlatList, Modal,
+  Pressable,
+  StyleSheet,
+  Text, TextInput,
+  View,
 } from 'react-native';
 
 type Props = {
@@ -48,7 +48,7 @@ export function NotePicker({
   }, [notes, query]);
 
   function toggle(note: LocalNote) {
-    if (note.is_pending) return; // henuz sunucuda yok, baglam olarak gonderilemez
+    if (note.is_pending) return; // Not yet on server, cannot be sent as context
     setSelected((prev) =>
       prev.includes(note.id)
         ? prev.filter((id) => id !== note.id)
@@ -68,22 +68,22 @@ export function NotePicker({
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={s.container}>
         <View style={s.header}>
-          <Text style={s.title}>Not sec</Text>
+          <Text style={s.title}>Select Notes</Text>
           <Pressable onPress={onClose} hitSlop={12}>
-            <Text style={s.close}>Kapat</Text>
+            <Text style={s.close}>Close</Text>
           </Pressable>
         </View>
 
         <TextInput
           style={s.search}
-          placeholder="Notlarda ara..."
+          placeholder="Search notes..."
           value={query}
           onChangeText={setQuery}
           autoCapitalize="none"
         />
 
         <Text style={s.hint}>
-          En fazla {maxSelection} not eklenebilir. Secilen notlarin icerigi koca gonderilir.
+          You can add up to {maxSelection} notes. Selected note contents will be sent to the coach.
         </Text>
 
         {loading ? (
@@ -101,19 +101,19 @@ export function NotePicker({
                   onPress={() => toggle(item)}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={s.rowName}>{item.title || 'Basliksiz not'}</Text>
+                    <Text style={s.rowName}>{item.title || 'Untitled note'}</Text>
                     <Text style={s.rowMeta} numberOfLines={1}>
                       {notePreview(item.body, 60)}
                     </Text>
                     {item.is_pending && (
-                      <Text style={s.pending}>Senkronize edilmedi - once baglanti gerekli</Text>
+                      <Text style={s.pending}>Not synchronized - connection required first</Text>
                     )}
                   </View>
                   {isSelected && <Check color="#111" size={20} />}
                 </Pressable>
               );
             }}
-            ListEmptyComponent={<Text style={s.empty}>Not bulunamadi.</Text>}
+            ListEmptyComponent={<Text style={s.empty}>No notes found.</Text>}
           />
         )}
 
@@ -123,7 +123,7 @@ export function NotePicker({
           disabled={selected.length === 0}
         >
           <Text style={s.primaryText}>
-            {selected.length > 0 ? `${selected.length} notu ekle` : 'Not sec'}
+            {selected.length > 0 ? `Add ${selected.length} note(s)` : 'Select notes'}
           </Text>
         </Pressable>
       </View>

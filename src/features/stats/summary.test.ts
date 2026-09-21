@@ -1,11 +1,11 @@
 import {
-    buildWeeklyStats,
-    computeWeekStreak,
-    formatVolume,
-    summarizeSessions,
-    totalsBetween,
-    type StatSession,
-    type StatSet,
+  buildWeeklyStats,
+  computeWeekStreak,
+  formatVolume,
+  summarizeSessions,
+  totalsBetween,
+  type StatSession,
+  type StatSet,
 } from './summary';
 
 const NOW = new Date('2026-09-14T12:00:00.000Z');
@@ -36,7 +36,7 @@ function makeSession(id: string, days: number): StatSession {
 }
 
 describe('summarizeSessions', () => {
-  it('seans basina set, hacim ve hareket sayisini hesaplar', () => {
+  it('calculates set count, volume, and exercise count per session', () => {
     const sets = [
       makeSet('s1', 100, 5),
       makeSet('s1', 100, 5),
@@ -52,7 +52,7 @@ describe('summarizeSessions', () => {
     expect(stats.get('s2')?.setCount).toBe(1);
   });
 
-  it('isinma setlerini haric tutar', () => {
+  it('excludes warmup sets', () => {
     const sets = [
       makeSet('s1', 20, 10, { warmup: true }),
       makeSet('s1', 100, 5),
@@ -64,18 +64,18 @@ describe('summarizeSessions', () => {
     expect(stats.get('s1')?.volumeKg).toBe(500);
   });
 
-  it('sadece isinma varsa seans haritada yer almaz', () => {
+  it('session is not included in map if there are only warmup sets', () => {
     const stats = summarizeSessions([makeSet('s1', 20, 10, { warmup: true })]);
     expect(stats.has('s1')).toBe(false);
   });
 
-  it('bos girdi icin bos harita doner', () => {
+  it('returns empty map for empty input', () => {
     expect(summarizeSessions([]).size).toBe(0);
   });
 });
 
 describe('totalsBetween', () => {
-  it('sadece aralik icindeki seanslari sayar', () => {
+  it('counts only sessions within the range', () => {
     const sessions = [makeSession('s1', 2), makeSession('s2', 10)];
     const sets = [makeSet('s1', 100, 5), makeSet('s2', 100, 5)];
 
@@ -91,7 +91,7 @@ describe('totalsBetween', () => {
     expect(totals.volumeKg).toBe(500);
   });
 
-  it('aralikta seans yoksa sifir doner', () => {
+  it('returns zero if there are no sessions in range', () => {
     const totals = totalsBetween(
       [makeSet('s1', 100, 5)],
       [makeSession('s1', 30)],
@@ -104,33 +104,33 @@ describe('totalsBetween', () => {
 });
 
 describe('computeWeekStreak', () => {
-  it('kayit yoksa 0 doner', () => {
+  it('returns 0 if there are no records', () => {
     expect(computeWeekStreak([], NOW)).toBe(0);
   });
 
-  it('ust uste haftalari sayar', () => {
+  it('counts consecutive weeks', () => {
     const sessions = [makeSession('a', 1), makeSession('b', 9), makeSession('c', 16)];
     expect(computeWeekStreak(sessions, NOW)).toBe(3);
   });
 
-  it('bos hafta seriyi keser', () => {
+  it('broken week breaks the streak', () => {
     const sessions = [makeSession('a', 1), makeSession('b', 20)];
     expect(computeWeekStreak(sessions, NOW)).toBe(1);
   });
 
-  it('bu hafta henuz antrenman yoksa seriyi bozmaz', () => {
+  it('does not break streak if there are no workouts yet this week', () => {
     const sessions = [makeSession('a', 9), makeSession('b', 16)];
     expect(computeWeekStreak(sessions, NOW)).toBe(2);
   });
 });
 
 describe('buildWeeklyStats', () => {
-  it('son hafta ile onceki haftayi karsilastirir', () => {
+  it('compares the current week with the previous week', () => {
     const sessions = [makeSession('s1', 2), makeSession('s2', 10)];
     const sets = [
       makeSet('s1', 100, 5), // 500
       makeSet('s1', 100, 5), // 500
-      makeSet('s2', 100, 5), // 500 (onceki hafta)
+      makeSet('s2', 100, 5), // 500 (previous week)
     ];
 
     const stats = buildWeeklyStats(sets, sessions, NOW);
@@ -140,7 +140,7 @@ describe('buildWeeklyStats', () => {
     expect(stats.volumeChangePct).toBe(100);
   });
 
-  it('onceki hafta veri yoksa degisim null olur', () => {
+  it('returns null change if there is no data for the previous week', () => {
     const stats = buildWeeklyStats(
       [makeSet('s1', 100, 5)],
       [makeSession('s1', 1)],
@@ -150,7 +150,7 @@ describe('buildWeeklyStats', () => {
     expect(stats.volumeChangePct).toBeNull();
   });
 
-  it('hic veri yoksa guvenli varsayilan doner', () => {
+  it('returns safe defaults if there is no data at all', () => {
     const stats = buildWeeklyStats([], [], NOW);
 
     expect(stats.current).toEqual({ sessions: 0, sets: 0, volumeKg: 0 });
@@ -159,11 +159,11 @@ describe('buildWeeklyStats', () => {
 });
 
 describe('formatVolume', () => {
-  it('1000 kg altini kg olarak gosterir', () => {
+  it('displays volume under 1000 kg as kg', () => {
     expect(formatVolume(850)).toBe('850 kg');
   });
 
-  it('1000 kg ustunu ton olarak gosterir', () => {
-    expect(formatVolume(12450)).toBe('12.5 ton');
+  it('displays volume over 1000 kg as tons', () => {
+    expect(formatVolume(12450)).toBe('12.5 tons');
   });
 });

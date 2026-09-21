@@ -49,14 +49,14 @@ export default function NoteScreen() {
       .then((note) => {
         if (cancelled) return;
         if (!note) {
-          Alert.alert('Hata', 'Not bulunamadi.');
+          Alert.alert('Error', 'Note not found.');
           return;
         }
         setTitle(note.title ?? '');
         setBody(note.body);
         setIsDraft(note.body.trim().length === 0);
       })
-      .catch(() => Alert.alert('Hata', 'Not yuklenemedi.'))
+      .catch(() => Alert.alert('Error', 'Could not load note.'))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [id]);
@@ -70,7 +70,7 @@ export default function NoteScreen() {
     });
 
     if (!parsed.success) {
-      // Bos not kaydedilmez, hata da gosterilmez
+      // Empty notes are not saved, nor shown as error
       if (latestRef.current.body.trim().length === 0) return;
       setError(parsed.error.issues[0].message);
       setSaveState('error');
@@ -88,7 +88,7 @@ export default function NoteScreen() {
       setSaveState('saved');
     } catch {
       dirtyRef.current = true;
-      setError('Kaydedilemedi. Baglanti gelince tekrar denenecek.');
+      setError('Could not save. Will retry when connected.');
       setSaveState('error');
     } finally {
       savingRef.current = false;
@@ -105,8 +105,7 @@ export default function NoteScreen() {
     timerRef.current = setTimeout(() => { save(); }, 1000);
   }
 
-  // Ekrandan cikarken: bekleyen degisikligi kaydet,
-  // hic doldurulmamis taslagi yerelden temizle.
+  // On exit: save pending changes, purge empty draft from local.
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -129,14 +128,14 @@ export default function NoteScreen() {
   function handleDelete() {
     if (!id) return;
     Alert.alert(
-      isDraft ? 'Notu birak' : 'Notu sil',
+      isDraft ? 'Discard Note' : 'Delete Note',
       isDraft
-        ? 'Bu bos not kaydedilmeyecek.'
-        : 'Bu not kalici olarak silinecek. Bu islem geri alinamaz.',
+        ? 'This empty note will not be saved.'
+        : 'This note will be permanently deleted. This action cannot be undone.',
       [
-        { text: 'Vazgec', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: isDraft ? 'Birak' : 'Sil',
+          text: isDraft ? 'Discard' : 'Delete',
           style: 'destructive',
           onPress: async () => {
             deletedRef.current = true;
@@ -151,7 +150,7 @@ export default function NoteScreen() {
               router.back();
             } catch {
               deletedRef.current = false;
-              Alert.alert('Hata', 'Not silinemedi.');
+              Alert.alert('Error', 'Could not delete note.');
             }
           },
         },
@@ -160,9 +159,9 @@ export default function NoteScreen() {
   }
 
   const statusText =
-    saveState === 'saving' ? 'Kaydediliyor...'
-      : saveState === 'saved' ? 'Kaydedildi'
-        : saveState === 'error' ? 'Kaydedilemedi'
+    saveState === 'saving' ? 'Saving...'
+      : saveState === 'saved' ? 'Saved'
+        : saveState === 'error' ? 'Failed to save'
           : '';
 
   return (
@@ -172,7 +171,7 @@ export default function NoteScreen() {
         <View style={s.header}>
           <Pressable style={s.headerLeft} onPress={handleBack} hitSlop={12}>
             <ChevronLeft color="#111" size={24} />
-            <Text style={s.headerBack}>Notlar</Text>
+            <Text style={s.headerBack}>Notes</Text>
           </Pressable>
 
           <Text style={s.headerStatus}>{statusText}</Text>
@@ -198,7 +197,7 @@ export default function NoteScreen() {
                 style={s.titleInput}
                 value={title}
                 onChangeText={(t) => onChange({ title: t })}
-                placeholder="Baslik (istege bagli)"
+                placeholder="Title (optional)"
                 placeholderTextColor="#aaa"
                 maxLength={120}
                 returnKeyType="next"
@@ -208,7 +207,7 @@ export default function NoteScreen() {
                 style={s.bodyInput}
                 value={body}
                 onChangeText={(t) => onChange({ body: t })}
-                placeholder="Notunu yaz..."
+                placeholder="Write your note..."
                 placeholderTextColor="#aaa"
                 multiline
                 textAlignVertical="top"
@@ -219,7 +218,7 @@ export default function NoteScreen() {
                 {error ? (
                   <Text style={s.error}>{error}</Text>
                 ) : (
-                  <Text style={s.hint}>Degisiklikler otomatik kaydedilir.</Text>
+                  <Text style={s.hint}>Changes are saved automatically.</Text>
                 )}
                 <Text style={s.counter}>{body.length} / 20000</Text>
               </View>
